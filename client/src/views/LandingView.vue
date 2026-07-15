@@ -78,7 +78,7 @@ const faqs = [
 const testimonials = [
   { name: 'Sarah Chen', role: 'Product Lead at AAAA', avatar: '', text: 'TaskFlow AI replaced 3 tools for us. The AI task breakdown alone saves my team 5+ hours per week.', stars: 5 },
   { name: 'Marcus Weber', role: 'CTO at AAA Berlin', avatar: '', text: 'The role hierarchy and permission system is the best I\'ve seen. Finally a tool that gets enterprise needs.', stars: 5 },
-  { name: 'Ayşe Demir', role: 'Engineering Manager at AAAA, avatar: '', text: 'Real-time collaboration is seamless. Our distributed team feels like they\'re in the same room.', stars: 5 },
+  { name: 'Ayşe Demir', role: 'Engineering Manager at AAAA', avatar: '', text: 'Real-time collaboration is seamless. Our distributed team feels like they\'re in the same room.', stars: 5 },
   { name: 'James Park', role: 'Founder at Y Combinator AAAA', avatar: '', text: 'The analytics dashboard is gorgeous. I check it every morning instead of email now.', stars: 5 },
 ]
 

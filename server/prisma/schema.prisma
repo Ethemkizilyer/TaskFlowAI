@@ -1,0 +1,295 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  DIRECTOR
+  MANAGER
+  TEAM_LEADER
+  TEAM_MEMBER
+  PERSONNEL
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING
+  BANNED
+  SUSPENDED
+}
+
+enum BoardRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_UPDATED
+  COMMENT_RECEIVED
+  MEMBER_INVITED
+  BOARD_SHARED
+  DUE_DATE_REMINDER
+  AI_SUGGESTION
+  MESSAGE_RECEIVED
+  ROLE_CHANGED
+  TEAM_JOINED
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
+  TEAM
+  DEPARTMENT
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  BACKLOG
+  TODO
+  IN_PROGRESS
+  REVIEW
+  DONE
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String
+  password      String
+  avatar        String?
+  bio           String?
+  role          Role           @default(PERSONNEL)
+  status        UserStatus     @default(PENDING)
+  emailVerified DateTime?
+  lastLoginAt   DateTime?
+  preferences   Json?
+  departmentId  String?
+  department    Department?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  teamId        String?
+  team          Team?          @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  directedDepartments Department[] @relation("DepartmentDirector")
+  ledTeams           Team[]       @relation("TeamLeader")
+  boards       Board[]
+  boardMembers BoardMember[]
+  tasks        Task[]
+  comments     Comment[]
+  activity     Activity[]
+  notifications Notification[]
+  sentNotifications Notification[] @relation("NotificationFromUser")
+  sentMessages       Message[]      @relation("MessageSender")
+  receivedMessages   Message[]      @relation("MessageRecipient")
+  conversationMembers ConversationMember[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("users")
+}
+
+model Board {
+  id           String       @id @default(cuid())
+  title        String
+  description  String?
+  color        String       @default("#6366f1")
+  isPrivate    Boolean      @default(false)
+  ownerId      String
+  owner        User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  members      BoardMember[]
+  columns      Column[]
+  tasks        Task[]
+  activity     Activity[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@map("boards")
+}
+
+model BoardMember {
+  id        String    @id @default(cuid())
+  boardId   String
+  userId    String
+  role      BoardRole @default(MEMBER)
+  invitedBy String?
+  joinedAt  DateTime  @default(now())
+  board     Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, userId])
+  @@map("board_members")
+}
+
+model Column {
+  id       String   @id @default(cuid())
+  title    String
+  status   TaskStatus
+  boardId  String
+  board    Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  tasks    Task[]
+  order    Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("columns")
+}
+
+model Task {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  priority    TaskPriority @default(MEDIUM)
+  status      TaskStatus   @default(TODO)
+  tags        String[]
+  dueDate     DateTime?
+  position    Int          @default(0)
+  boardId     String
+  board       Board        @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  columnId    String?
+  column      Column?      @relation(fields: [columnId], references: [id], onDelete: SetNull)
+  assigneeId  String?
+  assignee    User?        @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  comments    Comment[]
+  activity    Activity[]
+  aiGenerated Boolean      @default(false)
+  aiPriority  String?
+  aiTags      String[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("tasks")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("comments")
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  type      String
+  description String
+  boardId   String
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  taskId    String?
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@map("activities")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  data      Json?
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromUserId String?
+  fromUser  User?            @relation("NotificationFromUser", fields: [fromUserId], references: [id], onDelete: SetNull)
+  boardId   String?
+  taskId    String?
+  createdAt DateTime         @default(now())
+
+  @@map("notifications")
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  directorId  String?
+  director    User?    @relation("DepartmentDirector", fields: [directorId], references: [id], onDelete: SetNull)
+  teams       Team[]
+  members     User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("departments")
+}
+
+model Team {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  description  String?
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  leaderId     String?
+  leader       User?    @relation("TeamLeader", fields: [leaderId], references: [id], onDelete: SetNull)
+  members      User[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("teams")
+}
+
+model Conversation {
+  id        String             @id @default(cuid())
+  type      ConversationType   @default(DIRECT)
+  title     String?
+  avatar    String?
+  members   ConversationMember[]
+  messages  Message[]
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@map("conversations")
+}
+
+model ConversationMember {
+  id              String       @id @default(cuid())
+  conversationId  String
+  userId          String
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt      DateTime?
+  joinedAt        DateTime     @default(now())
+
+  @@unique([conversationId, userId])
+  @@map("conversation_members")
+}
+
+model Message {
+  id              String        @id @default(cuid())
+  content         String
+  conversationId  String
+  conversation    Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId        String
+  sender          User          @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipientId     String?
+  recipient       User?         @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
+  status          MessageStatus @default(SENT)
+  attachments     Json?
+  createdAt       DateTime      @default(now())
+
+  @@map("messages")
+}

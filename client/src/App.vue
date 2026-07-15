@@ -6,6 +6,7 @@ import { useThemeStore } from '@/stores/theme'
 import { useMessageStore } from '@/stores/message'
 import { connectSocket, disconnectSocket } from '@/api/socket'
 import Navbar from '@/components/Navbar.vue'
+import CommandPalette from '@/components/CommandPalette.vue'
 
 const authStore = useAuthStore()
 const route = useRoute()
@@ -44,6 +45,7 @@ watch(() => authStore.token, (newToken, oldToken) => {
 <template>
   <div>
     <Navbar v-if="showNavbar" />
+    <CommandPalette v-if="showNavbar" />
     <router-view v-slot="{ Component }">
       <transition name="fade" mode="out-in">
         <component :is="Component" />

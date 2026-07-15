@@ -85,11 +85,18 @@ export const adminApi = {
   },
   getPendingUsers: () => api.get('/users/admin/users/pending'),
   getUserById: (id: string) => api.get(`/users/admin/users/${id}`),
+  updateUser: (id: string, data: { name?: string; email?: string; role?: string; status?: string; bio?: string }) =>
+    api.patch(`/users/admin/users/${id}`, data),
+  deleteUser: (id: string) => api.delete(`/users/admin/users/${id}`),
   approveUser: (id: string) => api.patch(`/users/admin/users/${id}/approve`),
   banUser: (id: string) => api.patch(`/users/admin/users/${id}/ban`),
   unbanUser: (id: string) => api.patch(`/users/admin/users/${id}/unban`),
   updateUserRole: (id: string, role: string) =>
     api.patch(`/users/admin/users/${id}/role`, { role }),
+  resetPassword: (id: string) =>
+    api.post(`/users/admin/users/${id}/reset-password`),
+  bulkAction: (data: { userIds: string[]; action: string; role?: string }) =>
+    api.post('/users/admin/users/bulk', data),
 }
 
 export const messageApi = {
@@ -107,4 +114,12 @@ export const messageApi = {
     api.patch(`/messages/conversations/${conversationId}/read`),
   getOnlineUsers: () =>
     api.get('/messages/online-users'),
+}
+
+export const searchApi = {
+  global: (q: string) => api.get(`/search?q=${encodeURIComponent(q)}`),
+}
+
+export const dashboardApi = {
+  getStats: () => api.get('/dashboard-stats'),
 }

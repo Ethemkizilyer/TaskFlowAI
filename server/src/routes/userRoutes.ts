@@ -13,6 +13,10 @@ import {
   updateProfile,
   changePassword,
   createUser,
+  adminUpdateUser,
+  deleteUser,
+  resetUserPassword,
+  bulkAction,
 } from '../controllers/userController';
 import { getBoardActivity, getUserActivity } from '../controllers/activityController';
 import {
@@ -42,9 +46,13 @@ router.post('/admin/users', requirePermission('users:manage'), createUser);
 router.get('/admin/users', requireAnyPermission(['users:manage', 'users:approve', 'users:ban']), getAllUsers);
 router.get('/admin/users/pending', requirePermission('users:approve'), getPendingUsers);
 router.get('/admin/users/:id', requireAnyPermission(['users:manage', 'users:approve', 'users:ban']), getUserById);
+router.patch('/admin/users/:id', requirePermission('users:manage'), adminUpdateUser);
+router.delete('/admin/users/:id', requirePermission('users:manage'), deleteUser);
 router.patch('/admin/users/:id/approve', requirePermission('users:approve'), approveUser);
 router.patch('/admin/users/:id/ban', requirePermission('users:ban'), banUser);
 router.patch('/admin/users/:id/unban', requirePermission('users:ban'), unbanUser);
 router.patch('/admin/users/:id/role', requirePermission('users:role:change'), updateUserRole);
+router.post('/admin/users/:id/reset-password', requirePermission('users:manage'), resetUserPassword);
+router.post('/admin/users/bulk', requirePermission('users:manage'), bulkAction);
 
 export default router;

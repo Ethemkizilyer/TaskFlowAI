@@ -10,6 +10,7 @@ import boardRoutes from './routes/boardRoutes';
 import aiRoutes from './routes/aiRoutes';
 import userRoutes from './routes/userRoutes';
 import messageRoutes from './routes/messageRoutes';
+import searchRoutes from './routes/searchRoutes';
 import { notFound, errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -52,6 +53,7 @@ app.use('/api/boards', boardRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api', searchRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

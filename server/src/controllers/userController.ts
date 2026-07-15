@@ -160,12 +160,16 @@ export const getUserById = async (
         status: true,
         lastLoginAt: true,
         createdAt: true,
+        updatedAt: true,
+        department: { select: { id: true, name: true } },
+        team: { select: { id: true, name: true } },
         _count: {
           select: {
             boards: true,
             tasks: true,
             boardMembers: true,
             comments: true,
+            activity: true,
           },
         },
       },
@@ -175,8 +179,219 @@ export const getUserById = async (
       return res.status(404).json({ success: false, error: 'User not found' });
     }
 
-    return res.json({ success: true, data: user });
+    const [recentActivity, recentTasks] = await Promise.all([
+      prisma.activity.findMany({
+        where: { userId: user.id },
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          type: true,
+          description: true,
+          createdAt: true,
+          board: { select: { id: true, title: true } },
+        },
+      }),
+      prisma.task.findMany({
+        where: { assigneeId: user.id },
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          priority: true,
+          dueDate: true,
+          board: { select: { id: true, title: true } },
+        },
+      }),
+    ]);
+
+    return res.json({ success: true, data: { ...user, recentActivity, recentTasks } });
   } catch (error) {
+    next(error);
+  }
+};
+
+const adminUpdateUserSchema = z.object({
+  name: z.string().min(2).max(100).optional(),
+  email: z.string().email().optional(),
+  role: z.enum(['ADMIN', 'DIRECTOR', 'MANAGER', 'TEAM_LEADER', 'TEAM_MEMBER', 'PERSONNEL']).optional(),
+  status: z.enum(['ACTIVE', 'PENDING', 'BANNED']).optional(),
+  bio: z.string().max(500).optional(),
+});
+
+export const adminUpdateUser = async (
+  req: AuthenticatedRequest,
+  res: Response<ApiResponse>,
+  next: NextFunction
+) => {
+  try {
+    const data = adminUpdateUserSchema.parse(req.body);
+
+    if (req.params.id === req.userId && data.role && data.role !== 'ADMIN') {
+      return res.status(400).json({ success: false, error: 'Cannot demote yourself' });
+    }
+
+    if (req.params.id === req.userId && data.status === 'BANNED') {
+      return res.status(400).json({ success: false, error: 'Cannot ban yourself' });
+    }
+
+    const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    if (data.email && data.email !== existing.email) {
+      const emailTaken = await prisma.user.findUnique({ where: { email: data.email } });
+      if (emailTaken) {
+        return res.status(409).json({ success: false, error: 'Email already in use' });
+      }
+    }
+
+    const updateData: any = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.role !== undefined) updateData.role = data.role;
+    if (data.status !== undefined) updateData.status = data.status;
+    if (data.bio !== undefined) updateData.bio = data.bio;
+
+    const updated = await prisma.user.update({
+      where: { id: req.params.id },
+      data: updateData,
+      select: {
+        id: true, name: true, email: true, avatar: true, bio: true,
+        role: true, status: true, lastLoginAt: true, createdAt: true, updatedAt: true,
+      },
+    });
+
+    return res.json({ success: true, data: updated, message: 'User updated successfully' });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: error.errors[0]?.message || 'Validation error' });
+    }
+    next(error);
+  }
+};
+
+export const deleteUser = async (
+  req: AuthenticatedRequest,
+  res: Response<ApiResponse>,
+  next: NextFunction
+) => {
+  try {
+    if (req.params.id === req.userId) {
+      return res.status(400).json({ success: false, error: 'Cannot delete yourself' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    if (user.role === 'ADMIN') {
+      return res.status(400).json({ success: false, error: 'Cannot delete an admin user' });
+    }
+
+    await prisma.user.delete({ where: { id: req.params.id } });
+
+    return res.json({ success: true, message: 'User deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resetUserPassword = async (
+  req: AuthenticatedRequest,
+  res: Response<ApiResponse>,
+  next: NextFunction
+) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    const rawPassword = generateRandomPassword();
+    const hashedPassword = await bcrypt.hash(rawPassword, 10);
+
+    await prisma.user.update({
+      where: { id: req.params.id },
+      data: { password: hashedPassword },
+    });
+
+    const emailSent = await sendCredentialsEmail(user.email, user.name, rawPassword);
+
+    return res.json({
+      success: true,
+      message: emailSent
+        ? 'Password reset and sent to user email'
+        : 'Password reset but email could not be sent (SMTP not configured)',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const bulkActionSchema = z.object({
+  userIds: z.array(z.string()).min(1),
+  action: z.enum(['ban', 'unban', 'approve', 'delete', 'setRole']),
+  role: z.enum(['ADMIN', 'DIRECTOR', 'MANAGER', 'TEAM_LEADER', 'TEAM_MEMBER', 'PERSONNEL']).optional(),
+});
+
+export const bulkAction = async (
+  req: AuthenticatedRequest,
+  res: Response<ApiResponse>,
+  next: NextFunction
+) => {
+  try {
+    const { userIds, action, role } = bulkActionSchema.parse(req.body);
+
+    if (userIds.includes(req.userId!)) {
+      return res.status(400).json({ success: false, error: 'Cannot perform bulk action on yourself' });
+    }
+
+    let result: any = { action, affected: 0 };
+
+    if (action === 'ban') {
+      const r = await prisma.user.updateMany({
+        where: { id: { in: userIds }, role: { not: 'ADMIN' } },
+        data: { status: 'BANNED' },
+      });
+      result.affected = r.count;
+    } else if (action === 'unban') {
+      const r = await prisma.user.updateMany({
+        where: { id: { in: userIds } },
+        data: { status: 'ACTIVE' },
+      });
+      result.affected = r.count;
+    } else if (action === 'approve') {
+      const r = await prisma.user.updateMany({
+        where: { id: { in: userIds }, status: 'PENDING' },
+        data: { status: 'ACTIVE' },
+      });
+      result.affected = r.count;
+    } else if (action === 'delete') {
+      const r = await prisma.user.deleteMany({
+        where: { id: { in: userIds }, role: { not: 'ADMIN' } },
+      });
+      result.affected = r.count;
+    } else if (action === 'setRole') {
+      if (!role) {
+        return res.status(400).json({ success: false, error: 'Role is required for setRole action' });
+      }
+      const r = await prisma.user.updateMany({
+        where: { id: { in: userIds } },
+        data: { role },
+      });
+      result.affected = r.count;
+      result.role = role;
+    }
+
+    return res.json({ success: true, data: result, message: `Bulk ${action} completed for ${result.affected} users` });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: error.errors[0]?.message || 'Validation error' });
+    }
     next(error);
   }
 };

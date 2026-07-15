@@ -8,7 +8,7 @@ import { userApi } from '@/api'
 import {
   LayoutDashboard, Settings, LogOut, Bell, Users, Activity,
   ChevronDown, Shield, Check, Trash2, MessageSquare, Sun, Moon,
-  Briefcase, Building2, UserCog
+  Briefcase, Building2, UserCog, Search
 } from 'lucide-vue-next'
 import { ROLE_LABELS, ROLE_COLORS } from '@/types'
 
@@ -19,6 +19,7 @@ const messageStore = useMessageStore()
 
 const showUserMenu = ref(false)
 const showNotifications = ref(false)
+const showSearch = ref(false)
 const notifications = ref<any[]>([])
 const unreadCount = ref(0)
 
@@ -29,6 +30,10 @@ const canSeeAdmin = computed(() => authStore.user?.role === 'ADMIN')
 const canSeeDirector = computed(() => authStore.isAtLeastDirector)
 const canSeeManager = computed(() => authStore.isAtLeastManager)
 const canSeeTeamLeader = computed(() => authStore.isAtLeastTeamLeader)
+
+const triggerSearch = () => {
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))
+}
 
 const toggleUserMenu = () => {
   showUserMenu.value = !showUserMenu.value
@@ -114,6 +119,17 @@ onMounted(() => {
 
       <!-- Right actions -->
       <div class="flex items-center gap-2">
+        <!-- Search trigger -->
+        <button
+          @click="triggerSearch"
+          class="btn-ghost px-2.5 py-1.5 flex items-center gap-2 text-sm text-surface-400 hidden sm:flex"
+          title="Search (Ctrl+K)"
+        >
+          <Search :size="16" />
+          <span class="text-xs">Search</span>
+          <kbd class="px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-800 text-[10px] font-mono">⌘K</kbd>
+        </button>
+
         <!-- Theme toggle -->
         <button @click="themeStore.toggle()" class="btn-ghost p-2" :title="themeStore.isDark ? 'Switch to light mode' : 'Switch to dark mode'">
           <Sun v-if="themeStore.isDark" :size="18" />

@@ -3,8 +3,8 @@ import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useBoardStore } from '@/stores/board'
-import { userApi, adminApi } from '@/api'
-import { Sparkles, Plus, Users, Clock, MoreVertical, Trash2, X, Activity, TrendingUp, LayoutDashboard, Shield } from 'lucide-vue-next'
+import { userApi, adminApi, dashboardApi } from '@/api'
+import { Sparkles, Plus, Users, Clock, MoreVertical, Trash2, X, Activity, TrendingUp, LayoutDashboard, Shield, CheckCircle, Circle, AlertCircle, Flame } from 'lucide-vue-next'
 import type { BoardListItem } from '@/types'
 
 const router = useRouter()
@@ -16,6 +16,51 @@ const newBoard = ref({ title: '', description: '', color: '#6366f1' })
 const creating = ref(false)
 const menuOpen = ref<string | null>(null)
 const recentActivity = ref<any[]>([])
+const dashStats = ref<any>(null)
+
+const statusConfig: Record<string, { label: string; color: string; bg: string; icon: any }> = {
+  TODO: { label: 'To Do', color: 'text-surface-600', bg: 'bg-surface-400', icon: Circle },
+  IN_PROGRESS: { label: 'In Progress', color: 'text-blue-600', bg: 'bg-blue-500', icon: AlertCircle },
+  REVIEW: { label: 'Review', color: 'text-yellow-600', bg: 'bg-yellow-500', icon: AlertCircle },
+  DONE: { label: 'Done', color: 'text-green-600', bg: 'bg-green-500', icon: CheckCircle },
+}
+
+const priorityConfig: Record<string, { label: string; color: string; bg: string }> = {
+  LOW: { label: 'Low', color: 'text-surface-500', bg: 'bg-surface-400' },
+  MEDIUM: { label: 'Medium', color: 'text-blue-500', bg: 'bg-blue-400' },
+  HIGH: { label: 'High', color: 'text-orange-500', bg: 'bg-orange-400' },
+  URGENT: { label: 'Urgent', color: 'text-red-500', bg: 'bg-red-500' },
+}
+
+const maxActivityCount = computed(() => {
+  if (!dashStats.value?.activityLast7Days) return 1
+  return Math.max(...dashStats.value.activityLast7Days.map((d: any) => d.count), 1)
+})
+
+const totalTasksFromStats = computed(() => {
+  if (!dashStats.value?.taskStatus) return 0
+  return Object.values(dashStats.value.taskStatus).reduce((a: number, b: any) => a + b, 0)
+})
+
+const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+const statusColors: Record<string, string> = {
+  TODO: '#9ca3af',
+  IN_PROGRESS: '#3b82f6',
+  REVIEW: '#eab308',
+  DONE: '#22c55e',
+}
+
+const getDashOffset = (key: string) => {
+  if (!dashStats.value?.taskStatus) return 0
+  const entries = Object.entries(dashStats.value.taskStatus)
+  const idx = entries.findIndex(([k]) => k === key)
+  let offset = 0
+  for (let i = 0; i < idx; i++) {
+    offset += (entries[i][1] as number / totalTasksFromStats.value) * 251.2
+  }
+  return -offset
+}
 
 const colors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#8b5cf6', '#ef4444', '#3b82f6']
 
@@ -31,9 +76,19 @@ const totalMembers = computed(() => {
   return ids.size
 })
 
+const fetchDashStats = async () => {
+  try {
+    const res = await dashboardApi.getStats()
+    dashStats.value = res.data.data
+  } catch {
+    // ignore
+  }
+}
+
 onMounted(() => {
   boardStore.fetchBoards()
   fetchRecentActivity()
+  fetchDashStats()
 })
 
 const fetchRecentActivity = async () => {
@@ -95,15 +150,35 @@ const formatActivityTime = (date: string) => {
   <div class="min-h-screen bg-surface-50 dark:bg-surface-950">
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Welcome -->
-      <div class="flex items-center justify-between mb-8">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 class="text-2xl font-bold">Welcome back, {{ authStore.user?.name?.split(' ')[0] }}!</h1>
+          <h1 class="text-2xl font-bold">Welcome back, {{ authStore.user?.name?.split(' ')[0] }}! 👋</h1>
           <p class="text-surface-500 dark:text-surface-400 text-sm mt-1">Manage your projects with AI-powered insights</p>
         </div>
-        <button @click="showCreate = true" class="btn-primary">
-          <Plus :size="18" />
-          <span class="hidden sm:inline">New Board</span>
-        </button>
+        <div class="flex items-center gap-3">
+          <div v-if="dashStats" class="card px-4 py-2 flex items-center gap-3">
+            <div class="relative w-10 h-10">
+              <svg class="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" stroke-width="3" class="text-surface-200 dark:text-surface-700" />
+                <circle cx="18" cy="18" r="15" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round"
+                  :stroke-dasharray="`${(totalTasksFromStats > 0 ? (dashStats.taskStatus.DONE || 0) / totalTasksFromStats : 0) * 94.2} 94.2`"
+                  class="transition-all duration-700"
+                />
+              </svg>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <span class="text-xs font-bold">{{ totalTasksFromStats > 0 ? Math.round((dashStats.taskStatus.DONE || 0) / totalTasksFromStats * 100) : 0 }}%</span>
+              </div>
+            </div>
+            <div>
+              <p class="text-xs font-semibold">Completion</p>
+              <p class="text-[10px] text-surface-400">{{ dashStats.taskStatus.DONE || 0 }} of {{ totalTasksFromStats }} done</p>
+            </div>
+          </div>
+          <button @click="showCreate = true" class="btn-primary">
+            <Plus :size="18" />
+            <span class="hidden sm:inline">New Board</span>
+          </button>
+        </div>
       </div>
 
       <!-- Stats -->
@@ -142,6 +217,117 @@ const formatActivityTime = (date: string) => {
             <span class="text-2xl font-bold">{{ recentActivity.length }}</span>
           </div>
           <p class="text-xs text-surface-500">Recent Actions</p>
+        </div>
+      </div>
+
+      <!-- Analytics Row -->
+      <div v-if="dashStats" class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Task Status Distribution (Donut) -->
+        <div class="card p-5">
+          <h3 class="font-semibold text-sm mb-4">Task Status Distribution</h3>
+          <div class="flex items-center justify-center mb-4">
+            <div class="relative w-36 h-36">
+              <svg class="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" stroke-width="12" class="text-surface-200 dark:text-surface-800" />
+                <template v-for="(s, key) in dashStats.taskStatus" :key="key">
+                  <circle
+                    v-if="totalTasksFromStats > 0"
+                    cx="50" cy="50" r="40" fill="none"
+                    :stroke="statusColors[key as string] || '#9ca3af'"
+                    :stroke-width="12"
+                    :stroke-dasharray="`${(s / totalTasksFromStats) * 251.2} 251.2`"
+                    :stroke-dashoffset="getDashOffset(key as string)"
+                    class="transition-all duration-500"
+                  />
+                </template>
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center">
+                <span class="text-2xl font-bold">{{ totalTasksFromStats }}</span>
+                <span class="text-xs text-surface-500">Total</span>
+              </div>
+            </div>
+          </div>
+          <div class="space-y-2">
+            <div v-for="(count, key) in dashStats.taskStatus" :key="key" class="flex items-center justify-between text-sm">
+              <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-full" :class="statusConfig[key]?.bg || 'bg-gray-400'" />
+                <span class="text-surface-600 dark:text-surface-300">{{ statusConfig[key]?.label || key }}</span>
+              </div>
+              <span class="font-medium">{{ count }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Activity Last 7 Days (Bar Chart) -->
+        <div class="card p-5">
+          <h3 class="font-semibold text-sm mb-4">Activity (Last 7 Days)</h3>
+          <div class="flex items-end justify-between gap-2 h-32 mb-3">
+            <div v-for="d in dashStats.activityLast7Days" :key="d.date" class="flex-1 flex flex-col items-center gap-1">
+              <div class="w-full flex items-end justify-center" style="height: 100%">
+                <div
+                  class="w-full max-w-[28px] rounded-t-md bg-gradient-to-t from-primary-400 to-primary-600 transition-all duration-500 hover:from-primary-500 hover:to-primary-700"
+                  :style="{ height: `${(d.count / maxActivityCount) * 100}%`, minHeight: d.count > 0 ? '4px' : '0' }"
+                  :title="`${d.count} activities`"
+                />
+              </div>
+              <span class="text-[10px] text-surface-400">{{ dayLabels[new Date(d.date).getDay()] }}</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between text-xs text-surface-500">
+            <span>Total: {{ dashStats.activityLast7Days.reduce((a: number, d: any) => a + d.count, 0) }}</span>
+            <span>Avg: {{ Math.round(dashStats.activityLast7Days.reduce((a: number, d: any) => a + d.count, 0) / 7) }}/day</span>
+          </div>
+        </div>
+
+        <!-- Task Priority Distribution -->
+        <div class="card p-5">
+          <h3 class="font-semibold text-sm mb-4">Task Priority</h3>
+          <div class="space-y-3">
+            <div v-for="(count, key) in dashStats.taskPriority" :key="key">
+              <div class="flex items-center justify-between text-sm mb-1">
+                <div class="flex items-center gap-2">
+                  <Flame v-if="key === 'URGENT'" :size="14" class="text-red-500" />
+                  <span class="text-surface-600 dark:text-surface-300">{{ priorityConfig[key]?.label || key }}</span>
+                </div>
+                <span class="font-medium">{{ count }}</span>
+              </div>
+              <div class="h-2 rounded-full bg-surface-100 dark:bg-surface-800 overflow-hidden">
+                <div
+                  class="h-full rounded-full transition-all duration-500"
+                  :class="priorityConfig[key]?.bg || 'bg-gray-400'"
+                  :style="{ width: `${totalTasksFromStats > 0 ? (count / totalTasksFromStats) * 100 : 0}%` }"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Board Progress -->
+      <div v-if="dashStats?.boardProgress?.length" class="mb-8">
+        <h2 class="font-semibold text-lg mb-4">Board Progress</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div
+            v-for="bp in dashStats.boardProgress"
+            :key="bp.id"
+            class="card p-4 cursor-pointer hover:shadow-md transition-all"
+            @click="router.push(`/board/${bp.id}`)"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: bp.color }" />
+                <span class="text-sm font-medium truncate">{{ bp.title }}</span>
+              </div>
+              <span class="text-xs font-bold" :class="bp.progress === 100 ? 'text-green-500' : 'text-surface-400'">{{ bp.progress }}%</span>
+            </div>
+            <div class="h-2 rounded-full bg-surface-100 dark:bg-surface-800 overflow-hidden mb-1">
+              <div
+                class="h-full rounded-full transition-all duration-500"
+                :style="{ width: `${bp.progress}%`, backgroundColor: bp.color }"
+              />
+            </div>
+            <p class="text-xs text-surface-400">{{ bp.done }} / {{ bp.total }} tasks done</p>
+          </div>
         </div>
       </div>
 

@@ -7,6 +7,11 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
+      path: '/landing',
+      name: 'landing',
+      component: () => import('@/views/LandingView.vue'),
+    },
+    {
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginView.vue'),
@@ -74,7 +79,7 @@ const router = createRouter({
     },
     {
       path: '/:pathMatch(.*)*',
-      redirect: '/',
+      redirect: '/landing',
     },
   ],
 })
@@ -87,7 +92,7 @@ router.beforeEach(async (to, _from, next) => {
   }
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    next('/login')
+    next('/landing')
   } else if (to.meta.minRole && authStore.user) {
     const minRole = to.meta.minRole as Role
     const userRole = authStore.user.role

@@ -2,11 +2,13 @@ import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthenticatedRequest, ApiResponse } from '../types';
+import { createNotification } from './notificationController';
 
 const createBoardSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100),
   description: z.string().max(500).optional(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  memberEmails: z.array(z.string().email()).optional(),
 });
 
 const updateBoardSchema = z.object({
@@ -100,7 +102,16 @@ export const createBoard = async (
   next: NextFunction
 ) => {
   try {
-    const { title, description, color } = createBoardSchema.parse(req.body);
+    const { title, description, color, memberEmails } = createBoardSchema.parse(req.body);
+
+    const usersToAdd: { id: string; name: string }[] = [];
+    if (memberEmails && memberEmails.length > 0) {
+      const users = await prisma.user.findMany({
+        where: { email: { in: memberEmails }, deletedAt: null },
+        select: { id: true, name: true, email: true },
+      });
+      usersToAdd.push(...users);
+    }
 
     const board = await prisma.board.create({
       data: {
@@ -108,7 +119,12 @@ export const createBoard = async (
         description,
         color: color || '#6366f1',
         ownerId: req.userId!,
-        members: { create: { userId: req.userId!, role: 'ADMIN' } },
+        members: {
+          create: [
+            { userId: req.userId!, role: 'ADMIN' },
+            ...usersToAdd.map((u) => ({ userId: u.id, role: 'MEMBER' as const, invitedBy: req.userId })),
+          ],
+        },
         columns: {
           create: [
             { title: 'Backlog', status: 'BACKLOG', order: 0 },
@@ -122,6 +138,7 @@ export const createBoard = async (
       include: {
         columns: true,
         owner: { select: { id: true, name: true, avatar: true } },
+        members: { include: { user: { select: { id: true, name: true, email: true, avatar: true } } } },
       },
     });
 
@@ -133,6 +150,20 @@ export const createBoard = async (
         userId: req.userId!,
       },
     });
+
+    await Promise.all(
+      usersToAdd.map((u) =>
+        createNotification(
+          u.id,
+          'MEMBER_INVITED',
+          'Added to board',
+          `You have been added to "${title}"`,
+          { boardId: board.id, boardTitle: title },
+          req.userId,
+          board.id
+        )
+      )
+    );
 
     return res.status(201).json({ success: true, data: board, message: 'Board created' });
   } catch (error) {
@@ -239,6 +270,16 @@ export const addMember = async (
         userId: req.userId!,
       },
     });
+
+    await createNotification(
+      user.id,
+      'MEMBER_INVITED',
+      'Added to board',
+      `You have been added to "${board.title}"`,
+      { boardId: id, boardTitle: board.title },
+      req.userId,
+      id
+    );
 
     return res.json({ success: true, message: 'Member added' });
   } catch (error) {

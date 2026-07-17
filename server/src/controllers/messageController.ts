@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthenticatedRequest, ApiResponse } from '../types';
 import { getIO } from '../sockets/socketHandler';
+import { createNotification } from './notificationController';
 
 const createConversationSchema = z.object({
   type: z.enum(['DIRECT', 'GROUP']).default('DIRECT'),
@@ -266,6 +267,19 @@ export const sendMessage = async (
         }
       });
     }
+
+    members.forEach((member) => {
+      if (member.userId !== req.userId) {
+        createNotification(
+          member.userId,
+          'MESSAGE_RECEIVED',
+          'New message',
+          `You received a new message`,
+          { conversationId, messageId: message.id },
+          req.userId
+        );
+      }
+    });
 
     return res.status(201).json({ success: true, data: message, message: 'Message sent' });
   } catch (error) {

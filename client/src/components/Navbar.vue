@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
@@ -8,9 +8,16 @@ import { userApi } from '@/api'
 import {
   LayoutDashboard, Settings, LogOut, Bell, Users, Activity,
   ChevronDown, Shield, Check, Trash2, MessageSquare, Sun, Moon,
-  Briefcase, Building2, UserCog, Search
+  Briefcase, Building2, UserCog, Search, Sparkles, Brain, Zap, Heart
 } from 'lucide-vue-next'
 import { ROLE_LABELS, ROLE_COLORS } from '@/types'
+import LanguageSwitcher from './LanguageSwitcher.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
+const props = defineProps<{ notificationBadge?: number }>()
+const emit = defineEmits<{ 'notifications-read': [] }>()
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -23,7 +30,7 @@ const showSearch = ref(false)
 const notifications = ref<any[]>([])
 const unreadCount = ref(0)
 
-const roleLabel = computed(() => authStore.user ? ROLE_LABELS[authStore.user.role] : '')
+const roleLabel = computed(() => authStore.user ? t(`roles.${authStore.user.role}`) : '')
 const roleColor = computed(() => authStore.user ? ROLE_COLORS[authStore.user.role] : '')
 
 const canSeeAdmin = computed(() => authStore.user?.role === 'ADMIN')
@@ -69,6 +76,7 @@ const markAllRead = async () => {
   await userApi.markAllNotificationsRead()
   notifications.value.forEach((n) => (n.isRead = true))
   unreadCount.value = 0
+  emit('notifications-read')
 }
 
 const deleteNotification = async (id: string) => {
@@ -104,6 +112,13 @@ const formatTime = (date: string) => {
 onMounted(() => {
   fetchNotifications()
 })
+
+watch(() => props.notificationBadge, (newVal) => {
+  if (newVal && newVal > 0) {
+    unreadCount.value = newVal
+    if (showNotifications.value) fetchNotifications()
+  }
+})
 </script>
 
 <template>
@@ -123,21 +138,28 @@ onMounted(() => {
         <button
           @click="triggerSearch"
           class="btn-ghost px-2.5 py-1.5 flex items-center gap-2 text-sm text-surface-400 hidden sm:flex"
-          title="Search (Ctrl+K)"
+          :title="t('nav.search') + ' (Ctrl+K)'"
         >
           <Search :size="16" />
-          <span class="text-xs">Search</span>
+          <span class="text-xs">{{ t('nav.search') }}</span>
           <kbd class="px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-800 text-[10px] font-mono">⌘K</kbd>
         </button>
 
+        <!-- Briefing -->
+        <router-link to="/briefing" class="btn-ghost p-2 relative" :title="t('briefing.title')">
+          <Sparkles :size="18" class="text-primary-500" />
+        </router-link>
+
         <!-- Theme toggle -->
-        <button @click="themeStore.toggle()" class="btn-ghost p-2" :title="themeStore.isDark ? 'Switch to light mode' : 'Switch to dark mode'">
+        <LanguageSwitcher />
+
+        <button @click="themeStore.toggle()" class="btn-ghost p-2" :title="themeStore.isDark ? t('nav.lightMode') : t('nav.darkMode')">
           <Sun v-if="themeStore.isDark" :size="18" />
           <Moon v-else :size="18" />
         </button>
 
         <!-- Messages -->
-        <router-link to="/messages" class="btn-ghost p-2 relative" title="Messages">
+        <router-link to="/messages" class="btn-ghost p-2 relative" :title="t('nav.messages')">
           <MessageSquare :size="18" />
           <span v-if="messageStore.totalUnread > 0" class="absolute top-1 right-1 w-4 h-4 bg-primary-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
             {{ messageStore.totalUnread > 9 ? '9+' : messageStore.totalUnread }}
@@ -158,14 +180,14 @@ onMounted(() => {
             class="absolute right-0 mt-2 w-80 card p-0 shadow-xl overflow-hidden"
           >
             <div class="flex items-center justify-between p-3 border-b border-surface-200 dark:border-surface-800">
-              <span class="font-semibold text-sm">Notifications</span>
+              <span class="font-semibold text-sm">{{ t('nav.notifications') }}</span>
               <button v-if="unreadCount > 0" @click="markAllRead" class="text-xs text-primary-500 hover:text-primary-600">
-                Mark all read
+                {{ t('nav.markAllRead') }}
               </button>
             </div>
             <div class="max-h-80 overflow-y-auto">
               <div v-if="notifications.length === 0" class="p-6 text-center text-sm text-surface-400">
-                No notifications yet
+                {{ t('nav.noNotifications') }}
               </div>
               <div
                 v-for="n in notifications"
@@ -214,36 +236,48 @@ onMounted(() => {
             </div>
 
             <button @click="navigate('/')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
-              <LayoutDashboard :size="16" class="text-surface-400" /> Dashboard
+              <LayoutDashboard :size="16" class="text-surface-400" /> {{ t('nav.dashboard') }}
+            </button>
+            <button @click="navigate('/briefing')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
+              <Sparkles :size="16" class="text-primary-400" /> {{ t('briefing.title') }}
+            </button>
+            <button @click="navigate('/focus')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
+              <Brain :size="16" class="text-violet-400" /> {{ t('focus.title') }}
+            </button>
+            <button @click="navigate('/automations')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
+              <Zap :size="16" class="text-amber-400" /> {{ t('automation.title') }}
+            </button>
+            <button @click="navigate('/team-pulse')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
+              <Heart :size="16" class="text-pink-400" /> {{ t('pulse.title') }}
             </button>
             <button @click="navigate('/messages')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
-              <MessageSquare :size="16" class="text-surface-400" /> Messages
+              <MessageSquare :size="16" class="text-surface-400" /> {{ t('nav.messages') }}
             </button>
             <button @click="navigate('/activity')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
-              <Activity :size="16" class="text-surface-400" /> Activity Feed
+              <Activity :size="16" class="text-surface-400" /> {{ t('nav.activity') }}
             </button>
             <button @click="navigate('/profile')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
-              <Settings :size="16" class="text-surface-400" /> Profile & Settings
+              <Settings :size="16" class="text-surface-400" /> {{ t('nav.profile') }}
             </button>
 
             <div v-if="canSeeAdmin || canSeeDirector || canSeeManager || canSeeTeamLeader" class="border-t border-surface-200 dark:border-surface-800 mt-1 pt-1">
               <button v-if="canSeeAdmin" @click="navigate('/admin')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
-                <Users :size="16" class="text-surface-400" /> Admin Panel
+                <Users :size="16" class="text-surface-400" /> {{ t('nav.admin') }}
               </button>
               <button v-if="canSeeDirector" @click="navigate('/director')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
-                <Building2 :size="16" class="text-surface-400" /> Director Panel
+                <Building2 :size="16" class="text-surface-400" /> {{ t('nav.director') }}
               </button>
               <button v-if="canSeeManager" @click="navigate('/manager')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
-                <Briefcase :size="16" class="text-surface-400" /> Manager Panel
+                <Briefcase :size="16" class="text-surface-400" /> {{ t('nav.manager') }}
               </button>
               <button v-if="canSeeTeamLeader" @click="navigate('/team-leader')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
-                <UserCog :size="16" class="text-surface-400" /> Team Leader Panel
+                <UserCog :size="16" class="text-surface-400" /> {{ t('nav.teamLeader') }}
               </button>
             </div>
 
             <div class="border-t border-surface-200 dark:border-surface-800 mt-1 pt-1">
               <button @click="logout" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 transition-colors">
-                <LogOut :size="16" /> Logout
+                <LogOut :size="16" /> {{ t('nav.logout') }}
               </button>
             </div>
           </div>

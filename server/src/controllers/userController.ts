@@ -1,6 +1,8 @@
 import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
+import path from 'path';
+import fs from 'fs';
 import prisma from '../config/prisma';
 import { AuthenticatedRequest, ApiResponse } from '../types';
 import { sendCredentialsEmail } from '../services/emailService';
@@ -28,7 +30,7 @@ const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   email: z.string().email().optional(),
   bio: z.string().max(500).optional(),
-  avatar: z.string().url().nullable().optional(),
+  avatar: z.string().nullable().optional(),
 });
 
 const changePasswordSchema = z.object({
@@ -606,6 +608,30 @@ export const changePassword = async (
     });
 
     return res.json({ success: true, message: 'Password changed successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadAvatar = async (
+  req: AuthenticatedRequest,
+  res: Response<ApiResponse>,
+  next: NextFunction
+) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No file uploaded' });
+    }
+
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+
+    const updated = await prisma.user.update({
+      where: { id: req.userId },
+      data: { avatar: avatarUrl },
+      select: { id: true, name: true, email: true, avatar: true, bio: true, role: true },
+    });
+
+    return res.json({ success: true, data: updated, message: 'Avatar uploaded' });
   } catch (error) {
     next(error);
   }

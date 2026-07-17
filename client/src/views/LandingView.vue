@@ -2,12 +2,15 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useThemeStore } from '@/stores/theme'
+import { useI18n } from 'vue-i18n'
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import {
   Sparkles, ArrowRight, Sun, Moon, Check, Zap, Brain, Users,
   LayoutDashboard, MessageSquare, Shield, TrendingUp, Clock,
   Star, ChevronDown, Github, Twitter, Linkedin
 } from 'lucide-vue-next'
 
+const { t } = useI18n()
 const router = useRouter()
 const themeStore = useThemeStore()
 
@@ -25,28 +28,28 @@ onUnmounted(() => {
   window.removeEventListener('scroll', onScroll)
 })
 
-const features = [
-  { icon: Brain, title: 'AI-Powered Task Intelligence', desc: 'Gemini AI suggests priorities, breaks down complex tasks, and auto-assigns based on team capacity.', color: 'from-violet-500 to-purple-600', bg: 'bg-violet-50 dark:bg-violet-950/20' },
-  { icon: LayoutDashboard, title: 'Kanban + List + Timeline', desc: 'Switch between Kanban boards, list views, and timeline calendars instantly. Your data, your view.', color: 'from-blue-500 to-cyan-600', bg: 'bg-blue-50 dark:bg-blue-950/20' },
-  { icon: Users, title: 'Real-Time Collaboration', desc: 'Live cursors, instant updates, presence indicators. See your team work in real-time.', color: 'from-green-500 to-emerald-600', bg: 'bg-green-50 dark:bg-emerald-950/20' },
-  { icon: MessageSquare, title: 'Built-in Messaging', desc: 'No need for Slack. Direct messages, group chats, and task-level comments — all in one place.', color: 'from-orange-500 to-red-600', bg: 'bg-orange-50 dark:bg-red-950/20' },
-  { icon: Shield, title: 'Enterprise-Grade Security', desc: 'Role-based permissions, 6-tier hierarchy, audit logs. Your data stays yours.', color: 'from-slate-600 to-slate-800', bg: 'bg-slate-50 dark:bg-slate-900/20' },
-  { icon: TrendingUp, title: 'Advanced Analytics', desc: 'Donut charts, activity heatmaps, progress tracking. Data-driven decisions at a glance.', color: 'from-pink-500 to-rose-600', bg: 'bg-pink-50 dark:bg-rose-950/20' },
-]
+const features = computed(() => [
+  { icon: Brain, title: t('landing.features.ai.title'), desc: t('landing.features.ai.desc'), color: 'from-violet-500 to-purple-600', bg: 'bg-violet-50 dark:bg-violet-950/20' },
+  { icon: LayoutDashboard, title: t('landing.features.kanban.title'), desc: t('landing.features.kanban.desc'), color: 'from-blue-500 to-cyan-600', bg: 'bg-blue-50 dark:bg-blue-950/20' },
+  { icon: Users, title: t('landing.features.collab.title'), desc: t('landing.features.collab.desc'), color: 'from-green-500 to-emerald-600', bg: 'bg-green-50 dark:bg-emerald-950/20' },
+  { icon: MessageSquare, title: t('landing.features.messaging.title'), desc: t('landing.features.messaging.desc'), color: 'from-orange-500 to-red-600', bg: 'bg-orange-50 dark:bg-red-950/20' },
+  { icon: Shield, title: t('landing.features.security.title'), desc: t('landing.features.security.desc'), color: 'from-slate-600 to-slate-800', bg: 'bg-slate-50 dark:bg-slate-900/20' },
+  { icon: TrendingUp, title: t('landing.features.analytics.title'), desc: t('landing.features.analytics.desc'), color: 'from-pink-500 to-rose-600', bg: 'bg-pink-50 dark:bg-rose-950/20' },
+])
 
-const stats = [
-  { value: 50, suffix: 'K+', label: 'Active Users' },
-  { value: 2, suffix: 'M+', label: 'Tasks Completed' },
-  { value: 99, suffix: '%', label: 'Uptime SLA' },
-  { value: 4.9, suffix: '/5', label: 'User Rating', decimal: true },
-]
+const stats = computed(() => [
+  { value: 50, suffix: 'K+', label: t('landing.stats.activeUsers') },
+  { value: 2, suffix: 'M+', label: t('landing.stats.tasksCompleted') },
+  { value: 99, suffix: '%', label: t('landing.stats.uptime') },
+  { value: 4.9, suffix: '/5', label: t('landing.stats.rating'), decimal: true },
+])
 
-const animatedStats = ref(stats.map(() => 0))
+const animatedStats = ref(stats.value.map(() => 0))
 
 onMounted(() => {
   const observer = new IntersectionObserver((entries) => {
     if (entries[0].isIntersecting) {
-      stats.forEach((s, i) => {
+      stats.value.forEach((s, i) => {
         const duration = 1500
         const steps = 60
         const increment = s.value / steps
@@ -67,13 +70,13 @@ onMounted(() => {
   if (el) observer.observe(el)
 })
 
-const faqs = [
-  { q: 'How is TaskFlow AI different from Trello or Asana?', a: 'TaskFlow AI integrates Google Gemini AI directly into your workflow. It doesn\'t just manage tasks — it suggests priorities, breaks down complex projects, auto-assigns based on capacity, and generates progress summaries. Plus, built-in messaging eliminates the need for separate tools.' },
-  { q: 'Is my data secure?', a: 'Absolutely. We use enterprise-grade encryption, role-based access control with a 6-tier hierarchy (Admin → Director → Manager → Team Leader → Team Member → Personnel), and full audit logs. Your data is never shared with third parties.' },
-  { q: 'Can I use it for my entire organization?', a: 'Yes! TaskFlow AI scales from solo developers to enterprise teams. Departments, teams, boards, and granular permissions make it perfect for organizations of any size.' },
-  { q: 'Do I need to install anything?', a: 'No. TaskFlow AI is 100% cloud-based. Works in any modern browser. No downloads, no updates, no IT headaches.' },
-  { q: 'What about the AI features?', a: 'Powered by Google Gemini, our AI can: suggest task breakdowns, prioritize your backlog, write task descriptions, summarize board progress, and recommend team assignments. It\'s like having a project manager assistant 24/7.' },
-]
+const faqs = computed(() => [
+  { q: t('landing.faq.items[0].q'), a: t('landing.faq.items[0].a') },
+  { q: t('landing.faq.items[1].q'), a: t('landing.faq.items[1].a') },
+  { q: t('landing.faq.items[2].q'), a: t('landing.faq.items[2].a') },
+  { q: t('landing.faq.items[3].q'), a: t('landing.faq.items[3].a') },
+  { q: t('landing.faq.items[4].q'), a: t('landing.faq.items[4].a') },
+])
 
 const testimonials = [
   { name: 'Sarah Chen', role: 'Product Lead at AAAA', avatar: '', text: 'TaskFlow AI replaced 3 tools for us. The AI task breakdown alone saves my team 5+ hours per week.', stars: 5 },
@@ -114,21 +117,22 @@ const formatStat = (val: number, decimal?: boolean) => {
         </div>
 
         <div class="hidden md:flex items-center gap-8 text-sm font-medium text-surface-600 dark:text-surface-300">
-          <a href="#features" class="hover:text-primary-600 transition-colors">Features</a>
-          <a href="#ai" class="hover:text-primary-600 transition-colors">AI</a>
-          <a href="#compare" class="hover:text-primary-600 transition-colors">Compare</a>
-          <a href="#testimonials" class="hover:text-primary-600 transition-colors">Reviews</a>
-          <a href="#faq" class="hover:text-primary-600 transition-colors">FAQ</a>
+          <a href="#features" class="hover:text-primary-600 transition-colors">{{ t('landing.nav.features') }}</a>
+          <a href="#ai" class="hover:text-primary-600 transition-colors">{{ t('landing.nav.ai') }}</a>
+          <a href="#compare" class="hover:text-primary-600 transition-colors">{{ t('landing.nav.compare') }}</a>
+          <a href="#testimonials" class="hover:text-primary-600 transition-colors">{{ t('landing.nav.reviews') }}</a>
+          <a href="#faq" class="hover:text-primary-600 transition-colors">{{ t('landing.nav.faq') }}</a>
         </div>
 
         <div class="flex items-center gap-2">
+          <LanguageSwitcher />
           <button @click="themeStore.toggle()" class="btn-ghost p-2">
             <Sun v-if="themeStore.isDark" :size="18" />
             <Moon v-else :size="18" />
           </button>
-          <button @click="router.push('/login')" class="btn-ghost text-sm hidden sm:flex">Sign in</button>
+          <button @click="router.push('/login')" class="btn-ghost text-sm hidden sm:flex">{{ t('landing.nav.signIn') }}</button>
           <button @click="router.push('/register')" class="btn-primary text-sm">
-            Get Started <ArrowRight :size="16" />
+            {{ t('landing.nav.getStarted') }} <ArrowRight :size="16" />
           </button>
         </div>
       </div>
@@ -146,29 +150,28 @@ const formatStat = (val: number, decimal?: boolean) => {
         <!-- Badge -->
         <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary-50 dark:bg-primary-950/40 border border-primary-200 dark:border-primary-800 mb-6 animate-fade-in">
           <Sparkles :size="14" class="text-primary-500" />
-          <span class="text-xs font-medium text-primary-700 dark:text-primary-300">Powered by Google Gemini AI</span>
+          <span class="text-xs font-medium text-primary-700 dark:text-primary-300">{{ t('landing.hero.badge') }}</span>
           <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
         </div>
 
         <!-- Title -->
         <h1 class="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6 animate-slide-up">
-          Project Management
+          {{ t('landing.hero.title') }}
           <br />
-          <span class="gradient-text-animated">Reimagined by AI</span>
+          <span class="gradient-text-animated">{{ t('landing.hero.titleHighlight') }}</span>
         </h1>
 
         <p class="text-lg sm:text-xl text-surface-500 dark:text-surface-400 max-w-2xl mx-auto mb-10 animate-slide-up" style="animation-delay: 0.1s">
-          The first project management platform with AI built into every workflow.
-          Plan smarter, collaborate faster, and ship sooner — all in one beautiful workspace.
+          {{ t('landing.hero.subtitle') }}
         </p>
 
         <!-- CTAs -->
         <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mb-12 animate-slide-up" style="animation-delay: 0.2s">
           <button @click="router.push('/register')" class="btn-primary text-base px-6 py-3 glow-primary">
-            Start Free Today <ArrowRight :size="20" />
+            {{ t('landing.hero.ctaStart') }} <ArrowRight :size="20" />
           </button>
           <button @click="router.push('/login')" class="btn-secondary text-base px-6 py-3">
-            <Sparkles :size="18" /> Try Demo
+            <Sparkles :size="18" /> {{ t('landing.hero.ctaDemo') }}
           </button>
         </div>
 
@@ -275,10 +278,10 @@ const formatStat = (val: number, decimal?: boolean) => {
     <section id="features" class="py-24">
       <div class="max-w-7xl mx-auto px-4 sm:px-6">
         <div class="text-center mb-16">
-          <span class="text-sm font-bold text-primary-500 uppercase tracking-wider">Features</span>
-          <h2 class="text-4xl sm:text-5xl font-bold mt-2 mb-4">Everything you need.<br />Nothing you don't.</h2>
+          <span class="text-sm font-bold text-primary-500 uppercase tracking-wider">{{ t('landing.nav.features') }}</span>
+          <h2 class="text-4xl sm:text-5xl font-bold mt-2 mb-4" v-html="t('landing.features.title')"></h2>
           <p class="text-lg text-surface-500 dark:text-surface-400 max-w-2xl mx-auto">
-            One platform that replaces your task manager, chat tool, and analytics dashboard.
+            {{ t('landing.features.subtitle') }}
           </p>
         </div>
 
@@ -306,21 +309,14 @@ const formatStat = (val: number, decimal?: boolean) => {
           <div>
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-100 dark:bg-violet-950/40 mb-4">
               <Brain :size="14" class="text-violet-600" />
-              <span class="text-xs font-bold text-violet-700 dark:text-violet-300">AI POWERED</span>
+              <span class="text-xs font-bold text-violet-700 dark:text-violet-300">{{ t('landing.ai.badge') }}</span>
             </div>
-            <h2 class="text-4xl font-bold mb-4">Your AI project co-pilot</h2>
+            <h2 class="text-4xl font-bold mb-4">{{ t('landing.ai.title') }}</h2>
             <p class="text-lg text-surface-500 dark:text-surface-400 mb-6">
-              Powered by Google Gemini, TaskFlow AI doesn't just track your work — it understands it.
-              Get smart suggestions, automated breakdowns, and intelligent insights that make your team faster.
+              {{ t('landing.ai.subtitle') }}
             </p>
             <ul class="space-y-3">
-              <li v-for="cap in [
-                'Smart task breakdown — describe a project, AI creates the tasks',
-                'Auto-prioritization based on deadlines, dependencies & capacity',
-                'AI-generated progress summaries for stakeholders',
-                'Intelligent team assignment recommendations',
-                'Natural language search across all your data',
-              ]" :key="cap" class="flex items-start gap-3">
+              <li v-for="(cap, idx) in t('landing.ai.features') as any" :key="idx" class="flex items-start gap-3">
                 <div class="w-5 h-5 rounded-full bg-violet-500/20 flex items-center justify-center shrink-0 mt-0.5">
                   <Check :size="12" class="text-violet-600" />
                 </div>
@@ -336,16 +332,16 @@ const formatStat = (val: number, decimal?: boolean) => {
                 <Brain :size="16" class="text-white" />
               </div>
               <div>
-                <p class="text-sm font-semibold">TaskFlow AI Assistant</p>
+                <p class="text-sm font-semibold">{{ t('landing.ai.chatTitle') }}</p>
                 <p class="text-[10px] text-green-500">● Online</p>
               </div>
             </div>
             <div class="space-y-3">
               <div class="bg-surface-100 dark:bg-surface-800 rounded-lg p-3 max-w-[80%]">
-                <p class="text-xs">Break down "Launch mobile app v2" into tasks</p>
+                <p class="text-xs">{{ t('landing.ai.chatUser') }}</p>
               </div>
               <div class="bg-violet-50 dark:bg-violet-950/30 rounded-lg p-3 max-w-[90%] ml-auto">
-                <p class="text-xs font-medium mb-2">Here's a breakdown with 6 tasks:</p>
+                <p class="text-xs font-medium mb-2">{{ t('landing.ai.chatAi') }}</p>
                 <div class="space-y-1.5">
                   <div class="flex items-center gap-2 text-[11px]"><span class="w-4 h-4 rounded bg-blue-500/20 flex items-center justify-center text-blue-600 font-bold">1</span> Design system & component library</div>
                   <div class="flex items-center gap-2 text-[11px]"><span class="w-4 h-4 rounded bg-blue-500/20 flex items-center justify-center text-blue-600 font-bold">2</span> API integration & auth flow</div>
@@ -354,7 +350,7 @@ const formatStat = (val: number, decimal?: boolean) => {
                   <div class="flex items-center gap-2 text-[11px]"><span class="w-4 h-4 rounded bg-blue-500/20 flex items-center justify-center text-blue-600 font-bold">5</span> QA testing & bug fixes</div>
                   <div class="flex items-center gap-2 text-[11px]"><span class="w-4 h-4 rounded bg-blue-500/20 flex items-center justify-center text-blue-600 font-bold">6</span> App Store & Play Store submission</div>
                 </div>
-                <p class="text-[10px] text-violet-500 mt-2">⚡ Estimated: 3 weeks with 4 developers</p>
+                <p class="text-[10px] text-violet-500 mt-2">⚡ {{ t('landing.ai.chatEstimate') }}</p>
               </div>
             </div>
           </div>
@@ -366,15 +362,15 @@ const formatStat = (val: number, decimal?: boolean) => {
     <section id="compare" class="py-24">
       <div class="max-w-5xl mx-auto px-4 sm:px-6">
         <div class="text-center mb-12">
-          <span class="text-sm font-bold text-primary-500 uppercase tracking-wider">Comparison</span>
-          <h2 class="text-4xl font-bold mt-2 mb-4">Why teams switch to TaskFlow AI</h2>
+          <span class="text-sm font-bold text-primary-500 uppercase tracking-wider">{{ t('landing.nav.compare') }}</span>
+          <h2 class="text-4xl font-bold mt-2 mb-4">{{ t('landing.compare.title') }}</h2>
         </div>
 
         <div class="card overflow-hidden">
           <table class="w-full">
             <thead>
               <tr class="border-b border-surface-200 dark:border-surface-800">
-                <th class="text-left p-4 text-sm font-semibold">Feature</th>
+                <th class="text-left p-4 text-sm font-semibold">{{ t('landing.compare.feature') }}</th>
                 <th class="p-4 text-sm">
                   <div class="flex flex-col items-center">
                     <span class="gradient-text font-bold">TaskFlow AI</span>
@@ -415,8 +411,8 @@ const formatStat = (val: number, decimal?: boolean) => {
     <section id="testimonials" class="py-24 bg-surface-50/50 dark:bg-surface-900/30 border-y border-surface-200 dark:border-surface-800">
       <div class="max-w-7xl mx-auto px-4 sm:px-6">
         <div class="text-center mb-12">
-          <span class="text-sm font-bold text-primary-500 uppercase tracking-wider">Testimonials</span>
-          <h2 class="text-4xl font-bold mt-2 mb-4">Loved by teams worldwide</h2>
+          <span class="text-sm font-bold text-primary-500 uppercase tracking-wider">{{ t('landing.nav.reviews') }}</span>
+          <h2 class="text-4xl font-bold mt-2 mb-4">{{ t('landing.testimonials.title') }}</h2>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -443,8 +439,8 @@ const formatStat = (val: number, decimal?: boolean) => {
     <section id="faq" class="py-24">
       <div class="max-w-3xl mx-auto px-4 sm:px-6">
         <div class="text-center mb-12">
-          <span class="text-sm font-bold text-primary-500 uppercase tracking-wider">FAQ</span>
-          <h2 class="text-4xl font-bold mt-2 mb-4">Questions? Answered.</h2>
+          <span class="text-sm font-bold text-primary-500 uppercase tracking-wider">{{ t('landing.nav.faq') }}</span>
+          <h2 class="text-4xl font-bold mt-2 mb-4">{{ t('landing.faq.title') }}</h2>
         </div>
 
         <div class="space-y-3">
@@ -469,14 +465,14 @@ const formatStat = (val: number, decimal?: boolean) => {
       <div class="absolute inset-0 bg-gradient-to-br from-primary-600 via-purple-600 to-pink-600"></div>
       <div class="absolute inset-0 dot-bg opacity-20"></div>
       <div class="relative max-w-4xl mx-auto px-4 sm:px-6 text-center text-white">
-        <h2 class="text-4xl sm:text-5xl font-bold mb-4">Ready to work smarter?</h2>
+        <h2 class="text-4xl sm:text-5xl font-bold mb-4">{{ t('landing.cta.title') }}</h2>
         <p class="text-lg text-white/80 mb-8 max-w-2xl mx-auto">
-          Join 50,000+ teams using TaskFlow AI to ship faster. No credit card required.
+          {{ t('landing.cta.subtitle') }}
         </p>
         <button @click="router.push('/register')" class="inline-flex items-center gap-2 bg-white text-primary-600 font-semibold px-8 py-3.5 rounded-xl hover:shadow-2xl transition-all hover:scale-105">
-          Get Started Free <ArrowRight :size="20" />
+          {{ t('landing.cta.button') }} <ArrowRight :size="20" />
         </button>
-        <p class="text-sm text-white/60 mt-4">Free forever for teams up to 10 people</p>
+        <p class="text-sm text-white/60 mt-4">{{ t('landing.cta.note') }}</p>
       </div>
     </section>
 
@@ -490,30 +486,30 @@ const formatStat = (val: number, decimal?: boolean) => {
               <span class="font-bold">TaskFlow<span class="gradient-text"> AI</span></span>
             </div>
             <p class="text-sm text-surface-500 dark:text-surface-400 max-w-xs">
-              The AI-powered project management platform for modern teams.
+              {{ t('landing.footer.tagline') }}
             </p>
           </div>
           <div>
-            <p class="text-sm font-semibold mb-3">Product</p>
+            <p class="text-sm font-semibold mb-3">{{ t('landing.footer.product') }}</p>
             <ul class="space-y-2 text-sm text-surface-500 dark:text-surface-400">
-              <li><a href="#features" class="hover:text-primary-500">Features</a></li>
-              <li><a href="#ai" class="hover:text-primary-500">AI</a></li>
-              <li><a href="#compare" class="hover:text-primary-500">Compare</a></li>
-              <li><a href="#faq" class="hover:text-primary-500">FAQ</a></li>
+              <li><a href="#features" class="hover:text-primary-500">{{ t('landing.nav.features') }}</a></li>
+              <li><a href="#ai" class="hover:text-primary-500">{{ t('landing.nav.ai') }}</a></li>
+              <li><a href="#compare" class="hover:text-primary-500">{{ t('landing.nav.compare') }}</a></li>
+              <li><a href="#faq" class="hover:text-primary-500">{{ t('landing.nav.faq') }}</a></li>
             </ul>
           </div>
           <div>
-            <p class="text-sm font-semibold mb-3">Company</p>
+            <p class="text-sm font-semibold mb-3">{{ t('landing.footer.company') }}</p>
             <ul class="space-y-2 text-sm text-surface-500 dark:text-surface-400">
-              <li><a href="#" class="hover:text-primary-500">About</a></li>
-              <li><a href="#" class="hover:text-primary-500">Blog</a></li>
-              <li><a href="#" class="hover:text-primary-500">Privacy</a></li>
-              <li><a href="#" class="hover:text-primary-500">Terms</a></li>
+              <li><a href="#" class="hover:text-primary-500">{{ t('landing.footer.about') }}</a></li>
+              <li><a href="#" class="hover:text-primary-500">{{ t('landing.footer.blog') }}</a></li>
+              <li><a href="#" class="hover:text-primary-500">{{ t('landing.footer.privacy') }}</a></li>
+              <li><a href="#" class="hover:text-primary-500">{{ t('landing.footer.terms') }}</a></li>
             </ul>
           </div>
         </div>
         <div class="flex items-center justify-between pt-8 border-t border-surface-200 dark:border-surface-800">
-          <p class="text-xs text-surface-400">© 2026 TaskFlow AI. All rights reserved.</p>
+          <p class="text-xs text-surface-400">© 2026 TaskFlow AI. {{ t('landing.footer.rights') }}</p>
           <div class="flex items-center gap-3">
             <a href="#" class="btn-ghost p-2"><Twitter :size="16" /></a>
             <a href="#" class="btn-ghost p-2"><Github :size="16" /></a>

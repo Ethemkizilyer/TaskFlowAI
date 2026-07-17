@@ -6,6 +6,7 @@ import {
   generateSubtasks,
   analyzeBoard,
   generateTaskFromDescription,
+  getDailyBriefing,
 } from '../controllers/aiController';
 import { authenticate } from '../middleware/auth';
 
@@ -14,6 +15,7 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/status', getAIStatus);
+router.get('/daily-briefing', getDailyBriefing);
 router.post('/suggest-priority', suggestPriority);
 router.post('/suggest-tags', suggestTags);
 router.post('/generate-subtasks', generateSubtasks);

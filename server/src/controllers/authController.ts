@@ -38,7 +38,7 @@ export const register = async (
       return res.status(409).json({ success: false, error: 'Email already registered' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, config.bcryptRounds);
     const avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(email)}`;
 
     const userCount = await prisma.user.count();

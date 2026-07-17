@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
 
 import { config } from './config';
 import authRoutes from './routes/authRoutes';
@@ -11,11 +12,28 @@ import aiRoutes from './routes/aiRoutes';
 import userRoutes from './routes/userRoutes';
 import messageRoutes from './routes/messageRoutes';
 import searchRoutes from './routes/searchRoutes';
+import focusRoutes from './routes/focusRoutes';
+import automationRoutes from './routes/automationRoutes';
+import moodRoutes from './routes/moodRoutes';
 import { notFound, errorHandler } from './middleware/errorHandler';
 
 const app = express();
 
-app.use(helmet());
+app.set('trust proxy', 1);
+
+app.use(
+  helmet({
+    contentSecurityPolicy: config.isProduction ? {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:"],
+      },
+    } : false,
+    crossOriginEmbedderPolicy: false,
+  })
+);
 app.use(
   cors({
     origin: config.clientUrl,
@@ -44,6 +62,8 @@ const authLimiter = rateLimit({
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
+app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
+
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
@@ -53,6 +73,9 @@ app.use('/api/boards', boardRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/focus', focusRoutes);
+app.use('/api/automations', automationRoutes);
+app.use('/api/mood', moodRoutes);
 app.use('/api', searchRoutes);
 
 app.use(notFound);

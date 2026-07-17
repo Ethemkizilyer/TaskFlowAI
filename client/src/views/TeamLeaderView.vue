@@ -3,7 +3,9 @@ import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { adminApi } from '@/api'
 import { UserCog, Users, CheckSquare, Activity } from 'lucide-vue-next'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const authStore = useAuthStore()
 const stats = ref<any>({})
 const loading = ref(true)
@@ -31,8 +33,8 @@ onMounted(() => {
         <UserCog :size="20" class="text-green-600 dark:text-green-400" />
       </div>
       <div>
-        <h1 class="text-2xl font-bold">Team Leader Panel</h1>
-        <p class="text-sm text-surface-500">Lead your team and track progress</p>
+        <h1 class="text-2xl font-bold">{{ t('panels.teamLeader.title') }}</h1>
+        <p class="text-sm text-surface-500">{{ t('panels.teamLeader.subtitle') }}</p>
       </div>
     </div>
 
@@ -44,7 +46,7 @@ onMounted(() => {
           </div>
           <div>
             <p class="text-2xl font-bold">{{ stats.totalUsers || 0 }}</p>
-            <p class="text-xs text-surface-500">Team Members</p>
+            <p class="text-xs text-surface-500">{{ t('panels.teamLeader.teamMembers') }}</p>
           </div>
         </div>
       </div>
@@ -55,7 +57,7 @@ onMounted(() => {
           </div>
           <div>
             <p class="text-2xl font-bold">{{ stats.totalTasks || 0 }}</p>
-            <p class="text-xs text-surface-500">Team Tasks</p>
+            <p class="text-xs text-surface-500">{{ t('panels.teamLeader.teamTasks') }}</p>
           </div>
         </div>
       </div>
@@ -66,7 +68,7 @@ onMounted(() => {
           </div>
           <div>
             <p class="text-2xl font-bold">{{ stats.completedTasks || 0 }}</p>
-            <p class="text-xs text-surface-500">Completed</p>
+            <p class="text-xs text-surface-500">{{ t('panels.teamLeader.completed') }}</p>
           </div>
         </div>
       </div>
@@ -77,17 +79,16 @@ onMounted(() => {
           </div>
           <div>
             <p class="text-2xl font-bold">{{ stats.totalBoards || 0 }}</p>
-            <p class="text-xs text-surface-500">Team Boards</p>
+            <p class="text-xs text-surface-500">{{ t('panels.teamLeader.teamBoards') }}</p>
           </div>
         </div>
       </div>
     </div>
 
     <div class="card p-6">
-      <h2 class="font-semibold text-lg mb-2">Welcome, {{ authStore.user?.name }}</h2>
+      <h2 class="font-semibold text-lg mb-2">{{ t('panels.teamLeader.welcome') }}, {{ authStore.user?.name }}</h2>
       <p class="text-sm text-surface-500">
-        As a Team Leader, you can create boards, assign tasks to team members, and monitor team progress.
-        Use the navigation menu to access boards, messages, and activity feeds.
+        {{ t('panels.teamLeader.description') }}
       </p>
     </div>
   </div>

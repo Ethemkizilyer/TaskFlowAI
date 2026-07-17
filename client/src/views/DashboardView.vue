@@ -5,31 +5,34 @@ import { useAuthStore } from '@/stores/auth'
 import { useBoardStore } from '@/stores/board'
 import { userApi, adminApi, dashboardApi } from '@/api'
 import { Sparkles, Plus, Users, Clock, MoreVertical, Trash2, X, Activity, TrendingUp, LayoutDashboard, Shield, CheckCircle, Circle, AlertCircle, Flame } from 'lucide-vue-next'
+import { useI18n } from 'vue-i18n'
 import type { BoardListItem } from '@/types'
 
+const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 const boardStore = useBoardStore()
 
 const showCreate = ref(false)
-const newBoard = ref({ title: '', description: '', color: '#6366f1' })
+const newBoard = ref({ title: '', description: '', color: '#6366f1', memberEmails: [] as string[] })
 const creating = ref(false)
+const memberEmailInput = ref('')
 const menuOpen = ref<string | null>(null)
 const recentActivity = ref<any[]>([])
 const dashStats = ref<any>(null)
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; icon: any }> = {
-  TODO: { label: 'To Do', color: 'text-surface-600', bg: 'bg-surface-400', icon: Circle },
-  IN_PROGRESS: { label: 'In Progress', color: 'text-blue-600', bg: 'bg-blue-500', icon: AlertCircle },
-  REVIEW: { label: 'Review', color: 'text-yellow-600', bg: 'bg-yellow-500', icon: AlertCircle },
-  DONE: { label: 'Done', color: 'text-green-600', bg: 'bg-green-500', icon: CheckCircle },
+  TODO: { label: t('task.status.TODO'), color: 'text-surface-600', bg: 'bg-surface-400', icon: Circle },
+  IN_PROGRESS: { label: t('task.status.IN_PROGRESS'), color: 'text-blue-600', bg: 'bg-blue-500', icon: AlertCircle },
+  REVIEW: { label: t('task.status.REVIEW'), color: 'text-yellow-600', bg: 'bg-yellow-500', icon: AlertCircle },
+  DONE: { label: t('task.status.DONE'), color: 'text-green-600', bg: 'bg-green-500', icon: CheckCircle },
 }
 
 const priorityConfig: Record<string, { label: string; color: string; bg: string }> = {
-  LOW: { label: 'Low', color: 'text-surface-500', bg: 'bg-surface-400' },
-  MEDIUM: { label: 'Medium', color: 'text-blue-500', bg: 'bg-blue-400' },
-  HIGH: { label: 'High', color: 'text-orange-500', bg: 'bg-orange-400' },
-  URGENT: { label: 'Urgent', color: 'text-red-500', bg: 'bg-red-500' },
+  LOW: { label: t('task.priority.LOW'), color: 'text-surface-500', bg: 'bg-surface-400' },
+  MEDIUM: { label: t('task.priority.MEDIUM'), color: 'text-blue-500', bg: 'bg-blue-400' },
+  HIGH: { label: t('task.priority.HIGH'), color: 'text-orange-500', bg: 'bg-orange-400' },
+  URGENT: { label: t('task.priority.URGENT'), color: 'text-red-500', bg: 'bg-red-500' },
 }
 
 const maxActivityCount = computed(() => {
@@ -42,7 +45,11 @@ const totalTasksFromStats = computed(() => {
   return Object.values(dashStats.value.taskStatus).reduce((a: number, b: any) => a + b, 0)
 })
 
-const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const dayLabels = computed(() => {
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const trDays = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt']
+  return t('common.appName') === 'TaskFlow AI' && localStorage.getItem('taskflow-lang') === 'en' ? days : trDays
+})
 
 const statusColors: Record<string, string> = {
   TODO: '#9ca3af',
@@ -106,7 +113,8 @@ const handleCreate = async () => {
   try {
     const board = await boardStore.createBoard(newBoard.value)
     showCreate.value = false
-    newBoard.value = { title: '', description: '', color: '#6366f1' }
+    newBoard.value = { title: '', description: '', color: '#6366f1', memberEmails: [] }
+    memberEmailInput.value = ''
     router.push(`/board/${board.id}`)
   } catch (e: any) {
     console.error(e)
@@ -115,8 +123,17 @@ const handleCreate = async () => {
   }
 }
 
+const addMemberEmail = () => {
+  const email = memberEmailInput.value.trim()
+  if (!email) return
+  if (!newBoard.value.memberEmails.includes(email)) {
+    newBoard.value.memberEmails.push(email)
+  }
+  memberEmailInput.value = ''
+}
+
 const handleDelete = async (id: string) => {
-  if (!confirm('Delete this board? All tasks will be lost.')) return
+  if (!confirm(t('dashboard.confirmDelete'))) return
   await boardStore.deleteBoard(id)
   menuOpen.value = null
 }
@@ -152,8 +169,8 @@ const formatActivityTime = (date: string) => {
       <!-- Welcome -->
       <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 class="text-2xl font-bold">Welcome back, {{ authStore.user?.name?.split(' ')[0] }}! 👋</h1>
-          <p class="text-surface-500 dark:text-surface-400 text-sm mt-1">Manage your projects with AI-powered insights</p>
+          <h1 class="text-2xl font-bold">{{ t('dashboard.welcome') }}, {{ authStore.user?.name?.split(' ')[0] }}! 👋</h1>
+          <p class="text-surface-500 dark:text-surface-400 text-sm mt-1">{{ t('dashboard.subtitle') }}</p>
         </div>
         <div class="flex items-center gap-3">
           <div v-if="dashStats" class="card px-4 py-2 flex items-center gap-3">
@@ -170,13 +187,13 @@ const formatActivityTime = (date: string) => {
               </div>
             </div>
             <div>
-              <p class="text-xs font-semibold">Completion</p>
-              <p class="text-[10px] text-surface-400">{{ dashStats.taskStatus.DONE || 0 }} of {{ totalTasksFromStats }} done</p>
+              <p class="text-xs font-semibold">{{ t('dashboard.completion') }}</p>
+              <p class="text-[10px] text-surface-400">{{ dashStats.taskStatus.DONE || 0 }} / {{ totalTasksFromStats }} {{ t('dashboard.done') }}</p>
             </div>
           </div>
           <button @click="showCreate = true" class="btn-primary">
             <Plus :size="18" />
-            <span class="hidden sm:inline">New Board</span>
+            <span class="hidden sm:inline">{{ t('dashboard.newBoard') }}</span>
           </button>
         </div>
       </div>
@@ -188,35 +205,35 @@ const formatActivityTime = (date: string) => {
             <LayoutDashboard :size="18" class="text-primary-500" />
             <span class="text-2xl font-bold">{{ boardStore.boards.length }}</span>
           </div>
-          <p class="text-xs text-surface-500">Boards</p>
+          <p class="text-xs text-surface-500">{{ t('dashboard.boards') }}</p>
         </div>
         <div class="card p-4">
           <div class="flex items-center justify-between mb-1">
             <TrendingUp :size="18" class="text-green-500" />
             <span class="text-2xl font-bold">{{ totalTasks }}</span>
           </div>
-          <p class="text-xs text-surface-500">Total Tasks</p>
+          <p class="text-xs text-surface-500">{{ t('dashboard.tasks') }}</p>
         </div>
         <div class="card p-4">
           <div class="flex items-center justify-between mb-1">
             <Users :size="18" class="text-blue-500" />
             <span class="text-2xl font-bold">{{ totalMembers }}</span>
           </div>
-          <p class="text-xs text-surface-500">Collaborators</p>
+          <p class="text-xs text-surface-500">{{ t('dashboard.teamMembers') }}</p>
         </div>
         <div v-if="isAdmin" class="card p-4 cursor-pointer hover:shadow-md transition-all" @click="router.push('/admin')">
           <div class="flex items-center justify-between mb-1">
             <Shield :size="18" class="text-orange-500" />
             <span class="text-2xl font-bold">Admin</span>
           </div>
-          <p class="text-xs text-surface-500">Panel</p>
+          <p class="text-xs text-surface-500">{{ t('nav.admin') }}</p>
         </div>
         <div v-else class="card p-4">
           <div class="flex items-center justify-between mb-1">
             <Activity :size="18" class="text-purple-500" />
             <span class="text-2xl font-bold">{{ recentActivity.length }}</span>
           </div>
-          <p class="text-xs text-surface-500">Recent Actions</p>
+          <p class="text-xs text-surface-500">{{ t('dashboard.recentActivity') }}</p>
         </div>
       </div>
 
@@ -224,7 +241,7 @@ const formatActivityTime = (date: string) => {
       <div v-if="dashStats" class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <!-- Task Status Distribution (Donut) -->
         <div class="card p-5">
-          <h3 class="font-semibold text-sm mb-4">Task Status Distribution</h3>
+          <h3 class="font-semibold text-sm mb-4">{{ t('dashboard.taskStatus') }}</h3>
           <div class="flex items-center justify-center mb-4">
             <div class="relative w-36 h-36">
               <svg class="w-full h-full -rotate-90" viewBox="0 0 100 100">
@@ -243,7 +260,7 @@ const formatActivityTime = (date: string) => {
               </svg>
               <div class="absolute inset-0 flex flex-col items-center justify-center">
                 <span class="text-2xl font-bold">{{ totalTasksFromStats }}</span>
-                <span class="text-xs text-surface-500">Total</span>
+                <span class="text-xs text-surface-500">{{ t('common.all') }}</span>
               </div>
             </div>
           </div>
@@ -260,7 +277,7 @@ const formatActivityTime = (date: string) => {
 
         <!-- Activity Last 7 Days (Bar Chart) -->
         <div class="card p-5">
-          <h3 class="font-semibold text-sm mb-4">Activity (Last 7 Days)</h3>
+          <h3 class="font-semibold text-sm mb-4">{{ t('dashboard.weeklyActivity') }}</h3>
           <div class="flex items-end justify-between gap-2 h-32 mb-3">
             <div v-for="d in dashStats.activityLast7Days" :key="d.date" class="flex-1 flex flex-col items-center gap-1">
               <div class="w-full flex items-end justify-center" style="height: 100%">
@@ -281,7 +298,7 @@ const formatActivityTime = (date: string) => {
 
         <!-- Task Priority Distribution -->
         <div class="card p-5">
-          <h3 class="font-semibold text-sm mb-4">Task Priority</h3>
+          <h3 class="font-semibold text-sm mb-4">{{ t('dashboard.priorityDistribution') }}</h3>
           <div class="space-y-3">
             <div v-for="(count, key) in dashStats.taskPriority" :key="key">
               <div class="flex items-center justify-between text-sm mb-1">
@@ -305,7 +322,7 @@ const formatActivityTime = (date: string) => {
 
       <!-- Board Progress -->
       <div v-if="dashStats?.boardProgress?.length" class="mb-8">
-        <h2 class="font-semibold text-lg mb-4">Board Progress</h2>
+        <h2 class="font-semibold text-lg mb-4">{{ t('dashboard.boardProgress') }}</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div
             v-for="bp in dashStats.boardProgress"
@@ -326,7 +343,7 @@ const formatActivityTime = (date: string) => {
                 :style="{ width: `${bp.progress}%`, backgroundColor: bp.color }"
               />
             </div>
-            <p class="text-xs text-surface-400">{{ bp.done }} / {{ bp.total }} tasks done</p>
+            <p class="text-xs text-surface-400">{{ bp.done }} / {{ bp.total }} {{ t('dashboard.done') }}</p>
           </div>
         </div>
       </div>
@@ -334,7 +351,7 @@ const formatActivityTime = (date: string) => {
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Boards -->
         <div class="lg:col-span-2">
-          <h2 class="font-semibold text-lg mb-4">Your Boards</h2>
+          <h2 class="font-semibold text-lg mb-4">{{ t('dashboard.boards') }}</h2>
 
           <div v-if="boardStore.loading && !boardStore.boards.length" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div v-for="i in 4" :key="i" class="card p-6 animate-pulse">
@@ -348,10 +365,10 @@ const formatActivityTime = (date: string) => {
             <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-surface-100 dark:bg-surface-800 mb-4">
               <Sparkles :size="28" class="text-surface-400" />
             </div>
-            <h3 class="text-lg font-semibold mb-1">No boards yet</h3>
-            <p class="text-surface-500 dark:text-surface-400 text-sm mb-4">Create your first board to get started</p>
+            <h3 class="text-lg font-semibold mb-1">{{ t('dashboard.noBoards') }}</h3>
+            <p class="text-surface-500 dark:text-surface-400 text-sm mb-4">{{ t('dashboard.createFirst') }}</p>
             <button @click="showCreate = true" class="btn-primary">
-              <Plus :size="18" /> Create Board
+              <Plus :size="18" /> {{ t('dashboard.newBoard') }}
             </button>
           </div>
 
@@ -372,14 +389,14 @@ const formatActivityTime = (date: string) => {
                   </button>
                   <div v-if="menuOpen === board.id" class="absolute right-0 top-full mt-1 z-10 card p-1 shadow-lg" @click.stop>
                     <button @click.stop="handleDelete(board.id)" class="flex items-center gap-2 px-3 py-1.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md w-full">
-                      <Trash2 :size="14" /> Delete
+                      <Trash2 :size="14" /> {{ t('common.delete') }}
                     </button>
                   </div>
                 </div>
               </div>
 
               <h3 class="font-semibold text-lg mb-1">{{ board.title }}</h3>
-              <p class="text-sm text-surface-500 dark:text-surface-400 line-clamp-2 mb-4">{{ board.description || 'No description' }}</p>
+              <p class="text-sm text-surface-500 dark:text-surface-400 line-clamp-2 mb-4">{{ board.description || t('common.nothingHere') }}</p>
 
               <div class="flex items-center justify-between text-xs text-surface-400">
                 <div class="flex items-center gap-3">
@@ -399,12 +416,12 @@ const formatActivityTime = (date: string) => {
         <!-- Recent Activity -->
         <div>
           <div class="flex items-center justify-between mb-4">
-            <h2 class="font-semibold text-lg">Recent Activity</h2>
-            <router-link to="/activity" class="text-xs text-primary-500 hover:text-primary-600">View all</router-link>
+            <h2 class="font-semibold text-lg">{{ t('dashboard.recentActivity') }}</h2>
+            <router-link to="/activity" class="text-xs text-primary-500 hover:text-primary-600">{{ t('common.viewAll') }}</router-link>
           </div>
 
           <div v-if="recentActivity.length === 0" class="card p-6 text-center text-sm text-surface-400">
-            No recent activity
+            {{ t('dashboard.noActivity') }}
           </div>
 
           <div v-else class="space-y-2">
@@ -434,21 +451,21 @@ const formatActivityTime = (date: string) => {
     <div v-if="showCreate" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" @click.self="showCreate = false">
       <div class="card p-6 w-full max-w-md animate-scale-in">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-semibold">Create New Board</h2>
+          <h2 class="text-lg font-semibold">{{ t('dashboard.newBoard') }}</h2>
           <button @click="showCreate = false" class="btn-ghost p-1"><X :size="18" /></button>
         </div>
 
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium mb-1.5">Title</label>
-            <input v-model="newBoard.title" type="text" placeholder="e.g. Product Sprint" class="input" @keyup.enter="handleCreate" />
+            <label class="block text-sm font-medium mb-1.5">{{ t('common.title') }}</label>
+            <input v-model="newBoard.title" type="text" :placeholder="t('dashboard.boardNamePlaceholder')" class="input" @keyup.enter="handleCreate" />
           </div>
           <div>
-            <label class="block text-sm font-medium mb-1.5">Description</label>
-            <textarea v-model="newBoard.description" placeholder="Brief description..." class="input resize-none" rows="3"></textarea>
+            <label class="block text-sm font-medium mb-1.5">{{ t('common.description') }}</label>
+            <textarea v-model="newBoard.description" :placeholder="t('dashboard.boardDescPlaceholder')" class="input resize-none" rows="3"></textarea>
           </div>
           <div>
-            <label class="block text-sm font-medium mb-1.5">Color</label>
+            <label class="block text-sm font-medium mb-1.5">{{ t('common.name') }}</label>
             <div class="flex gap-2 flex-wrap">
               <button
                 v-for="color in colors"
@@ -460,8 +477,35 @@ const formatActivityTime = (date: string) => {
               />
             </div>
           </div>
+          <div>
+            <label class="block text-sm font-medium mb-1.5">{{ t('board.addMembers') }}</label>
+            <div class="flex gap-2">
+              <input
+                v-model="memberEmailInput"
+                type="email"
+                placeholder="user@example.com"
+                class="input flex-1"
+                @keyup.enter="addMemberEmail"
+              />
+              <button @click="addMemberEmail" :disabled="!memberEmailInput.trim()" class="btn-ghost px-3">
+                <Plus :size="18" />
+              </button>
+            </div>
+            <div v-if="newBoard.memberEmails.length" class="flex flex-wrap gap-2 mt-2">
+              <span
+                v-for="(email, i) in newBoard.memberEmails"
+                :key="i"
+                class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-surface-100 dark:bg-surface-800 text-xs"
+              >
+                {{ email }}
+                <button @click="newBoard.memberEmails.splice(i, 1)" class="text-surface-400 hover:text-red-500">
+                  <X :size="12" />
+                </button>
+              </span>
+            </div>
+          </div>
           <button @click="handleCreate" :disabled="creating || !newBoard.title.trim()" class="btn-primary w-full">
-            {{ creating ? 'Creating...' : 'Create Board' }}
+            {{ creating ? t('common.loading') : t('dashboard.newBoard') }}
           </button>
         </div>
       </div>

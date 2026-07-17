@@ -14,7 +14,7 @@ export const authApi = {
 export const boardApi = {
   getAll: () => api.get<{ success: boolean; data: BoardListItem[] }>('/boards'),
   get: (id: string) => api.get<{ success: boolean; data: Board }>(`/boards/${id}`),
-  create: (data: { title: string; description?: string; color?: string }) =>
+  create: (data: { title: string; description?: string; color?: string; memberEmails?: string[] }) =>
     api.post('/boards', data),
   update: (id: string, data: { title?: string; description?: string; color?: string }) =>
     api.patch(`/boards/${id}`, data),
@@ -42,6 +42,7 @@ export const taskApi = {
 
 export const aiApi = {
   getStatus: () => api.get('/ai/status'),
+  getDailyBriefing: () => api.get('/ai/daily-briefing'),
   suggestPriority: (title: string, description?: string) =>
     api.post('/ai/suggest-priority', { title, description }),
   suggestTags: (title: string, description?: string) =>
@@ -59,6 +60,13 @@ export const userApi = {
     api.patch('/users/profile', data),
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
     api.patch('/users/profile/password', data),
+  uploadAvatar: (file: File) => {
+    const formData = new FormData()
+    formData.append('avatar', file)
+    return api.post('/users/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
   getActivity: (page = 1, limit = 20) =>
     api.get(`/users/activity?page=${page}&limit=${limit}`),
   getBoardActivity: (boardId: string, page = 1, limit = 30) =>
@@ -71,6 +79,8 @@ export const userApi = {
     api.patch('/users/notifications/read-all'),
   deleteNotification: (id: string) =>
     api.delete(`/users/notifications/${id}`),
+  broadcastNotification: (data: { title: string; message: string; target?: string; role?: string }) =>
+    api.post('/users/notifications/broadcast', data),
 }
 
 export const adminApi = {
@@ -118,6 +128,32 @@ export const messageApi = {
 
 export const searchApi = {
   global: (q: string) => api.get(`/search?q=${encodeURIComponent(q)}`),
+}
+
+export const focusApi = {
+  startSession: (data: { taskId?: string; taskTitle?: string; duration: number }) =>
+    api.post('/focus/start', data),
+  completeSession: (id: string) =>
+    api.patch(`/focus/${id}/complete`),
+  getStats: () => api.get('/focus/stats'),
+  getSessions: () => api.get('/focus/sessions'),
+}
+
+export const automationApi = {
+  getAll: () => api.get('/automations'),
+  getOptions: () => api.get('/automations/options'),
+  create: (data: { name: string; trigger: string; action: string; boardId?: string; triggerConfig?: any; actionConfig?: any }) =>
+    api.post('/automations', data),
+  toggle: (id: string) => api.patch(`/automations/${id}/toggle`),
+  delete: (id: string) => api.delete(`/automations/${id}`),
+}
+
+export const moodApi = {
+  checkin: (data: { mood: string; note?: string; stress?: number; workload?: number }) =>
+    api.post('/mood/checkin', data),
+  getToday: () => api.get('/mood/today'),
+  getTeamPulse: (days = 7) => api.get(`/mood/team?days=${days}`),
+  getHistory: () => api.get('/mood/history'),
 }
 
 export const dashboardApi = {

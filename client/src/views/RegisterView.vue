@@ -4,7 +4,10 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { Sparkles, User, Mail, Lock, ArrowRight, Loader2, Sun, Moon, Brain, Users, TrendingUp, Check } from 'lucide-vue-next'
+import { useI18n } from 'vue-i18n'
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 
+const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
@@ -26,7 +29,7 @@ const passwordStrength = computed(() => {
   if (/[A-Z]/.test(p)) score++
   if (/[0-9]/.test(p)) score++
   if (/[^A-Za-z0-9]/.test(p)) score++
-  const labels = ['', 'Weak', 'Fair', 'Good', 'Strong', 'Excellent']
+  const labels = ['', t('register.passwordStrength.weak'), t('register.passwordStrength.fair'), t('register.passwordStrength.good'), t('register.passwordStrength.strong'), t('register.passwordStrength.excellent')]
   const colors = ['', 'bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500', 'bg-emerald-500']
   return { score, label: labels[score], color: colors[score] }
 })
@@ -37,7 +40,7 @@ const handleSubmit = async () => {
     await authStore.register(name.value, email.value, password.value)
     router.push('/')
   } catch (e: any) {
-    error.value = e.response?.data?.error || 'Registration failed'
+    error.value = e.response?.data?.error || t('register.error')
   }
 }
 </script>
@@ -60,17 +63,17 @@ const handleSubmit = async () => {
 
         <div class="max-w-md">
           <h1 class="text-4xl font-bold leading-tight mb-4">
-            Start your journey with AI-powered project management.
+            {{ t('register.welcomeTitle') }}
           </h1>
           <p class="text-white/70 text-lg mb-8">
-            Join 50,000+ teams who ship faster with TaskFlow AI. Free forever for small teams.
+            {{ t('register.welcomeSubtitle') }}
           </p>
           <div class="space-y-3">
             <div v-for="feat in [
-              { icon: Check, text: 'No credit card required' },
-              { icon: Brain, text: 'AI task breakdown & prioritization' },
-              { icon: Users, text: 'Real-time team collaboration' },
-              { icon: TrendingUp, text: 'Advanced analytics & insights' },
+              { icon: Check, text: t('register.feat1') },
+              { icon: Brain, text: t('register.feat2') },
+              { icon: Users, text: t('register.feat3') },
+              { icon: TrendingUp, text: t('register.feat4') },
             ]" :key="feat.text" class="flex items-center gap-3">
               <div class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
                 <component :is="feat.icon" :size="16" />
@@ -90,7 +93,7 @@ const handleSubmit = async () => {
             <div class="flex items-center gap-1 mb-0.5">
               <span class="text-yellow-300 text-sm">★★★★★</span>
             </div>
-            <p class="text-xs text-white/60">Loved by 50K+ users</p>
+            <p class="text-xs text-white/60">{{ t('register.lovedBy') }}</p>
           </div>
         </div>
       </div>
@@ -106,6 +109,7 @@ const handleSubmit = async () => {
           <span class="font-bold">TaskFlow<span class="gradient-text"> AI</span></span>
         </router-link>
         <div class="ml-auto flex items-center gap-2">
+          <LanguageSwitcher />
           <button @click="themeStore.toggle()" class="btn-ghost p-2">
             <Sun v-if="themeStore.isDark" :size="18" />
             <Moon v-else :size="18" />
@@ -115,33 +119,33 @@ const handleSubmit = async () => {
 
       <div class="flex-1 flex items-center justify-center px-6 pb-12">
         <div class="w-full max-w-sm animate-scale-in">
-          <h2 class="text-2xl font-bold mb-1">Create your account</h2>
-          <p class="text-sm text-surface-500 dark:text-surface-400 mb-8">Get started free — no credit card needed</p>
+          <h2 class="text-2xl font-bold mb-1">{{ t('register.title') }}</h2>
+          <p class="text-sm text-surface-500 dark:text-surface-400 mb-8">{{ t('register.subtitle') }}</p>
 
           <form @submit.prevent="handleSubmit" class="space-y-5">
             <div>
-              <label class="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">Name</label>
+              <label class="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">{{ t('register.name') }}</label>
               <div class="relative">
                 <User class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" :size="18" />
-                <input v-model="name" type="text" required placeholder="John Doe" class="input pl-10" />
+                <input v-model="name" type="text" required :placeholder="t('register.namePlaceholder')" class="input pl-10" />
               </div>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">Email</label>
+              <label class="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">{{ t('register.email') }}</label>
               <div class="relative">
                 <Mail class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" :size="18" />
-                <input v-model="email" type="email" required placeholder="you@example.com" class="input pl-10" />
+                <input v-model="email" type="email" required :placeholder="t('common.email')" class="input pl-10" />
               </div>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">Password</label>
+              <label class="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">{{ t('register.password') }}</label>
               <div class="relative">
                 <Lock class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" :size="18" />
                 <input v-model="password" :type="showPassword ? 'text' : 'password'" required minlength="6" placeholder="••••••••" class="input pl-10 pr-10" />
                 <button type="button" @click="showPassword = !showPassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 text-xs font-medium">
-                  {{ showPassword ? 'Hide' : 'Show' }}
+                  {{ showPassword ? t('register.hide') : t('register.show') }}
                 </button>
               </div>
               <!-- Password strength bar -->
@@ -159,18 +163,18 @@ const handleSubmit = async () => {
 
             <button type="submit" :disabled="loading" class="btn-primary w-full">
               <Loader2 v-if="loading" :size="18" class="animate-spin" />
-              <span v-else>Create Account</span>
+              <span v-else>{{ t('register.createAccount') }}</span>
               <ArrowRight v-if="!loading" :size="18" />
             </button>
           </form>
 
           <div class="mt-6 text-center text-sm text-surface-500 dark:text-surface-400">
-            Already have an account?
-            <router-link to="/login" class="text-primary-600 hover:text-primary-700 font-medium">Sign in</router-link>
+            {{ t('register.haveAccount') }}
+            <router-link to="/login" class="text-primary-600 hover:text-primary-700 font-medium">{{ t('register.signIn') }}</router-link>
           </div>
 
           <div class="mt-4 text-center">
-            <router-link to="/" class="text-xs text-surface-400 hover:text-primary-500">← Back to home</router-link>
+            <router-link to="/" class="text-xs text-surface-400 hover:text-primary-500">{{ t('register.backHome') }}</router-link>
           </div>
         </div>
       </div>

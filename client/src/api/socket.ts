@@ -8,12 +8,14 @@ type MessageHandler = (message: any) => void
 type TypingHandler = (data: { userId: string; userName: string; isTyping: boolean }) => void
 type PresenceHandler = (data: { userId: string; online: boolean }) => void
 type ConversationHandler = (conversation: any) => void
+type NotificationHandler = (notification: any) => void
 
 const messageHandlers: Map<string, MessageHandler[]> = new Map()
 const typingHandlers: Map<string, TypingHandler[]> = new Map()
 const presenceHandlers: PresenceHandler[] = []
 const conversationHandlers: ConversationHandler[] = []
 const globalMessageHandlers: MessageHandler[] = []
+const notificationHandlers: NotificationHandler[] = []
 
 export function connectSocket(): Socket {
   const authStore = useAuthStore()
@@ -72,6 +74,10 @@ export function connectSocket(): Socket {
 
   socket.on('conversation:created', (conversation) => {
     conversationHandlers.forEach((h) => h(conversation))
+  })
+
+  socket.on('notification:received', (notification) => {
+    notificationHandlers.forEach((h) => h(notification))
   })
 
   return socket
@@ -142,6 +148,14 @@ export function onConversationCreated(handler: ConversationHandler) {
   return () => {
     const idx = conversationHandlers.indexOf(handler)
     if (idx >= 0) conversationHandlers.splice(idx, 1)
+  }
+}
+
+export function onNotificationReceived(handler: NotificationHandler) {
+  notificationHandlers.push(handler)
+  return () => {
+    const idx = notificationHandlers.indexOf(handler)
+    if (idx >= 0) notificationHandlers.splice(idx, 1)
   }
 }
 

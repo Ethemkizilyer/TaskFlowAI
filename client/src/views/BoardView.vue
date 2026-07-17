@@ -11,7 +11,9 @@ import {
   Users, Search, Crown, Shield, Eye, UserMinus, UserPlus
 } from 'lucide-vue-next'
 import type { Task, TaskPriority, Column } from '@/types'
+import { useI18n } from 'vue-i18n'
 
+const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const boardStore = useBoardStore()
@@ -81,6 +83,38 @@ const filteredTasks = computed(() => {
 const filteredTaskIds = computed(() => new Set(filteredTasks.value.map((t: Task) => t.id)))
 
 const isBoardOwner = computed(() => board.value?.ownerId === authStore.user?.id)
+
+const canManageMembers = computed(() => {
+  if (!board.value) return false
+  if (board.value.ownerId === authStore.user?.id) return true
+  const myMember = board.value.members?.find((m: any) => m.userId === authStore.user?.id)
+  return myMember?.role === 'ADMIN'
+})
+
+const newMemberEmail = ref('')
+const addingMember = ref(false)
+
+const handleAddMember = async () => {
+  if (!newMemberEmail.value.trim()) return
+  addingMember.value = true
+  try {
+    await boardStore.addMember(boardId, newMemberEmail.value.trim())
+    newMemberEmail.value = ''
+  } catch (e: any) {
+    alert(e.response?.data?.error || 'Failed to add member')
+  } finally {
+    addingMember.value = false
+  }
+}
+
+const handleRemoveMember = async (userId: string) => {
+  if (!confirm('Remove this member from the board?')) return
+  try {
+    await boardStore.removeMember(boardId, userId)
+  } catch (e: any) {
+    alert(e.response?.data?.error || 'Failed to remove member')
+  }
+}
 
 const memberRoleColors: Record<string, string> = {
   OWNER: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-950/30 dark:text-yellow-300',
@@ -177,7 +211,7 @@ const saveTask = async () => {
 }
 
 const deleteTask = async (task: Task) => {
-  if (!confirm('Delete this task?')) return
+  if (!confirm(t('board.deleteTaskConfirm'))) return
   await boardStore.deleteTask(boardId, task.id)
   showTaskModal.value = false
 }
@@ -252,7 +286,7 @@ const handleAIAnalyze = async () => {
     aiAnalysis.value = res.data.data
   } catch (e) {
     console.error(e)
-    aiAnalysis.value = { summary: 'AI analysis unavailable', recommendations: [], riskTasks: [] }
+    aiAnalysis.value = { summary: t('board.aiAnalysisUnavailable'), recommendations: [], riskTasks: [] }
   } finally {
     aiLoading.value = false
   }
@@ -279,7 +313,7 @@ const handleAIGenerate = async () => {
 }
 
 const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return new Date(date).toLocaleDateString(locale.value === 'tr' ? 'tr-TR' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 const clearFilters = () => {
@@ -305,7 +339,7 @@ const hasActiveFilters = computed(() => {
               <ArrowLeft :size="18" />
             </button>
             <div class="min-w-0">
-              <h1 class="text-lg font-semibold truncate">{{ board?.title || 'Loading...' }}</h1>
+              <h1 class="text-lg font-semibold truncate">{{ board?.title || t('common.loading') }}</h1>
               <p class="text-xs text-surface-500 dark:text-surface-400 truncate">{{ board?.description }}</p>
             </div>
           </div>
@@ -317,15 +351,15 @@ const hasActiveFilters = computed(() => {
                 +{{ board.members.length - 5 }}
               </div>
             </div>
-            <button @click="showSearch = !showSearch" class="btn-ghost p-2" title="Search & Filter">
+            <button @click="showSearch = !showSearch" class="btn-ghost p-2" :title="t('board.searchFilter')">
               <Search :size="18" />
             </button>
-            <button @click="showMembers = true" class="btn-ghost p-2" title="Members">
+            <button @click="showMembers = true" class="btn-ghost p-2" :title="t('board.members')">
               <Users :size="18" />
             </button>
-            <button @click="handleAIAnalyze" class="btn-primary text-xs" title="AI Board Analysis">
+            <button @click="handleAIAnalyze" class="btn-primary text-xs" :title="t('board.aiAnalysis')">
               <Brain :size="16" />
-              <span class="hidden sm:inline">AI Insights</span>
+              <span class="hidden sm:inline">{{ t('board.aiInsights') }}</span>
             </button>
           </div>
         </div>
@@ -334,28 +368,28 @@ const hasActiveFilters = computed(() => {
         <div v-if="showSearch" class="mt-3 flex flex-wrap items-center gap-2 pb-1">
           <div class="relative flex-1 min-w-[200px]">
             <Search :size="14" class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
-            <input v-model="searchQuery" type="text" placeholder="Search tasks..." class="input pl-9 py-1.5 text-sm" />
+            <input v-model="searchQuery" type="text" :placeholder="t('board.searchTasks')" class="input pl-9 py-1.5 text-sm" />
           </div>
           <select v-model="filterPriority" class="input py-1.5 text-sm w-auto">
-            <option value="">All Priority</option>
-            <option value="LOW">Low</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="HIGH">High</option>
-            <option value="URGENT">Urgent</option>
+            <option value="">{{ t('board.allPriority') }}</option>
+            <option value="LOW">{{ t('task.priority.LOW') }}</option>
+            <option value="MEDIUM">{{ t('task.priority.MEDIUM') }}</option>
+            <option value="HIGH">{{ t('task.priority.HIGH') }}</option>
+            <option value="URGENT">{{ t('task.priority.URGENT') }}</option>
           </select>
           <select v-if="allTags.length" v-model="filterTag" class="input py-1.5 text-sm w-auto">
-            <option value="">All Tags</option>
+            <option value="">{{ t('board.allTags') }}</option>
             <option v-for="tag in allTags" :key="tag" :value="tag">{{ tag }}</option>
           </select>
           <select v-model="filterAssignee" class="input py-1.5 text-sm w-auto">
-            <option value="">All Assignees</option>
+            <option value="">{{ t('board.allAssignees') }}</option>
             <option v-for="member in boardMembers" :key="member.userId" :value="member.userId">{{ member.user.name }}</option>
           </select>
           <button v-if="hasActiveFilters" @click="clearFilters" class="btn-ghost p-1.5 text-xs text-red-500">
-            <X :size="14" /> Clear
+            <X :size="14" /> {{ t('common.clear') }}
           </button>
           <span v-if="hasActiveFilters" class="text-xs text-surface-500">
-            {{ filteredTasks.length }} result(s)
+            {{ filteredTasks.length }} {{ t('board.results') }}
           </span>
         </div>
       </div>
@@ -408,7 +442,7 @@ const hasActiveFilters = computed(() => {
               >
                 <div class="flex items-start justify-between gap-2 mb-2">
                   <span class="text-sm font-medium line-clamp-2">{{ task.title }}</span>
-                  <span v-if="task.aiGenerated" class="shrink-0" title="AI generated">
+                  <span v-if="task.aiGenerated" class="shrink-0" :title="t('board.aiGenerated')">
                     <Bot :size="14" class="text-primary-500" />
                   </span>
                 </div>
@@ -422,7 +456,7 @@ const hasActiveFilters = computed(() => {
                 </div>
 
                 <div class="flex items-center justify-between">
-                  <span class="badge" :class="priorityColors[task.priority]">{{ task.priority }}</span>
+                  <span class="badge" :class="priorityColors[task.priority]">{{ t(`task.priority.${task.priority}`) }}</span>
                   <div class="flex items-center gap-2">
                     <span v-if="task.comments.length" class="flex items-center gap-1 text-xs text-surface-400">
                       <MessageSquare :size="12" /> {{ task.comments.length }}
@@ -434,7 +468,7 @@ const hasActiveFilters = computed(() => {
             </div>
 
             <button @click="openCreateTask(column.id)" class="w-full mt-2 py-2 text-xs text-surface-400 hover:text-surface-600 dark:hover:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-lg transition-colors flex items-center justify-center gap-1">
-              <Plus :size="14" /> Add Task
+              <Plus :size="14" /> {{ t('board.addTask') }}
             </button>
           </div>
         </div>
@@ -445,7 +479,7 @@ const hasActiveFilters = computed(() => {
     <button
       @click="showAIGenerate = true"
       class="fixed bottom-6 right-6 z-30 w-14 h-14 rounded-full bg-primary-600 text-white shadow-lg shadow-primary-600/30 hover:bg-primary-700 transition-all hover:scale-110 flex items-center justify-center"
-      title="AI Generate Task"
+      :title="t('board.aiGenerateTask')"
     >
       <Sparkles :size="24" />
     </button>
@@ -456,14 +490,14 @@ const hasActiveFilters = computed(() => {
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2">
             <Brain :size="20" class="text-primary-500" />
-            <h2 class="text-lg font-semibold">AI Board Analysis</h2>
+            <h2 class="text-lg font-semibold">{{ t('board.aiAnalysis') }}</h2>
           </div>
           <button @click="showAIAnalysis = false" class="btn-ghost p-1"><X :size="18" /></button>
         </div>
 
         <div v-if="aiLoading" class="flex flex-col items-center py-12">
           <Loader2 :size="32" class="animate-spin text-primary-500 mb-3" />
-          <p class="text-sm text-surface-500">Analyzing your board...</p>
+          <p class="text-sm text-surface-500">{{ t('board.analyzing') }}</p>
         </div>
 
         <div v-else-if="aiAnalysis" class="space-y-4">
@@ -472,7 +506,7 @@ const hasActiveFilters = computed(() => {
           </div>
 
           <div v-if="aiAnalysis.recommendations.length">
-            <h3 class="text-sm font-semibold flex items-center gap-2 mb-2"><Lightbulb :size="16" class="text-yellow-500" /> Recommendations</h3>
+            <h3 class="text-sm font-semibold flex items-center gap-2 mb-2"><Lightbulb :size="16" class="text-yellow-500" /> {{ t('board.recommendations') }}</h3>
             <ul class="space-y-2">
               <li v-for="(rec, i) in aiAnalysis.recommendations" :key="i" class="text-sm text-surface-600 dark:text-surface-300 flex gap-2">
                 <span class="text-primary-500">•</span> {{ rec }}
@@ -481,7 +515,7 @@ const hasActiveFilters = computed(() => {
           </div>
 
           <div v-if="aiAnalysis.riskTasks.length">
-            <h3 class="text-sm font-semibold flex items-center gap-2 mb-2"><AlertTriangle :size="16" class="text-red-500" /> At-Risk Tasks</h3>
+            <h3 class="text-sm font-semibold flex items-center gap-2 mb-2"><AlertTriangle :size="16" class="text-red-500" /> {{ t('board.riskTasks') }}</h3>
             <div class="space-y-1">
               <div v-for="(task, i) in aiAnalysis.riskTasks" :key="i" class="text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
                 <TrendingDown :size="14" /> {{ task }}
@@ -498,19 +532,19 @@ const hasActiveFilters = computed(() => {
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2">
             <Sparkles :size="20" class="text-primary-500" />
-            <h2 class="text-lg font-semibold">AI Task Generator</h2>
+            <h2 class="text-lg font-semibold">{{ t('board.aiTaskGenerator') }}</h2>
           </div>
           <button @click="showAIGenerate = false" class="btn-ghost p-1"><X :size="18" /></button>
         </div>
 
-        <p class="text-sm text-surface-500 dark:text-surface-400 mb-3">Describe what you need and AI will create a structured task.</p>
+        <p class="text-sm text-surface-500 dark:text-surface-400 mb-3">{{ t('board.aiGenerateDesc') }}</p>
 
-        <textarea v-model="aiGenerateInput" placeholder="e.g. We need to prepare the product launch landing page with SEO optimization" class="input resize-none mb-3" rows="3" @keyup.ctrl.enter="handleAIGenerate"></textarea>
+        <textarea v-model="aiGenerateInput" :placeholder="t('board.aiGeneratePlaceholder')" class="input resize-none mb-3" rows="3" @keyup.ctrl.enter="handleAIGenerate"></textarea>
 
         <button @click="handleAIGenerate" :disabled="aiGenerating || !aiGenerateInput.trim()" class="btn-primary w-full">
           <Loader2 v-if="aiGenerating" :size="18" class="animate-spin" />
           <Sparkles v-else :size="18" />
-          {{ aiGenerating ? 'Generating...' : 'Generate Task' }}
+          {{ aiGenerating ? t('board.generating') : t('board.generateTask') }}
         </button>
       </div>
     </div>
@@ -519,7 +553,7 @@ const hasActiveFilters = computed(() => {
     <div v-if="showTaskModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" @click.self="showTaskModal = false">
       <div class="card p-6 w-full max-w-lg animate-scale-in max-h-[85vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-semibold">{{ editingTask ? 'Edit Task' : 'New Task' }}</h2>
+          <h2 class="text-lg font-semibold">{{ editingTask ? t('board.editTask') : t('board.newTask') }}</h2>
           <div class="flex items-center gap-1">
             <button v-if="editingTask" @click="deleteTask(editingTask)" class="btn-ghost p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30">
               <Trash2 :size="16" />
@@ -530,26 +564,26 @@ const hasActiveFilters = computed(() => {
 
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium mb-1.5">Title</label>
-            <input v-model="newTaskTitle" type="text" placeholder="Task title" class="input" />
+            <label class="block text-sm font-medium mb-1.5">{{ t('common.title') }}</label>
+            <input v-model="newTaskTitle" type="text" :placeholder="t('board.taskTitle')" class="input" />
           </div>
 
           <div>
-            <label class="block text-sm font-medium mb-1.5">Description</label>
-            <textarea v-model="newTaskDescription" placeholder="Add details..." class="input resize-none" rows="3"></textarea>
+            <label class="block text-sm font-medium mb-1.5">{{ t('common.description') }}</label>
+            <textarea v-model="newTaskDescription" :placeholder="t('board.addDetails')" class="input resize-none" rows="3"></textarea>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium mb-1.5">Priority</label>
+              <label class="block text-sm font-medium mb-1.5">{{ t('common.priority') }}</label>
               <div class="flex gap-1">
                 <select v-model="newTaskPriority" class="input">
-                  <option value="LOW">Low</option>
-                  <option value="MEDIUM">Medium</option>
-                  <option value="HIGH">High</option>
-                  <option value="URGENT">Urgent</option>
+                  <option value="LOW">{{ t('task.priority.LOW') }}</option>
+                  <option value="MEDIUM">{{ t('task.priority.MEDIUM') }}</option>
+                  <option value="HIGH">{{ t('task.priority.HIGH') }}</option>
+                  <option value="URGENT">{{ t('task.priority.URGENT') }}</option>
                 </select>
-                <button @click="handleAISuggestPriority" :disabled="aiSuggestingPriority" class="btn-secondary px-2" title="AI suggest priority">
+                <button @click="handleAISuggestPriority" :disabled="aiSuggestingPriority" class="btn-secondary px-2" :title="t('board.aiSuggestPriority')">
                   <Loader2 v-if="aiSuggestingPriority" :size="14" class="animate-spin" />
                   <Brain v-else :size="14" />
                 </button>
@@ -557,28 +591,28 @@ const hasActiveFilters = computed(() => {
             </div>
 
             <div>
-              <label class="block text-sm font-medium mb-1.5">Column</label>
+              <label class="block text-sm font-medium mb-1.5">{{ t('board.column') }}</label>
               <select v-model="newTaskColumnId" class="input">
-                <option :value="null">No column</option>
+                <option :value="null">{{ t('board.noColumn') }}</option>
                 <option v-for="col in columns" :key="col.id" :value="col.id">{{ col.title }}</option>
               </select>
             </div>
           </div>
 
           <div>
-            <label class="block text-sm font-medium mb-1.5">Assignee</label>
+            <label class="block text-sm font-medium mb-1.5">{{ t('common.assignee') }}</label>
             <select v-model="newTaskAssigneeId" class="input">
-              <option :value="null">Unassigned</option>
+              <option :value="null">{{ t('board.unassigned') }}</option>
               <option v-for="member in boardMembers" :key="member.userId" :value="member.userId">{{ member.user.name }}</option>
             </select>
           </div>
 
           <div>
             <div class="flex items-center justify-between mb-1.5">
-              <label class="text-sm font-medium">Tags</label>
+              <label class="text-sm font-medium">{{ t('board.tags') }}</label>
               <button @click="handleAISuggestTags" :disabled="aiSuggestingTags" class="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1">
                 <Loader2 v-if="aiSuggestingTags" :size="12" class="animate-spin" />
-                <Brain v-else :size="12" /> AI Suggest
+                <Brain v-else :size="12" /> {{ t('board.aiSuggest') }}
               </button>
             </div>
             <div class="flex flex-wrap gap-1.5 mb-2">
@@ -588,19 +622,19 @@ const hasActiveFilters = computed(() => {
             </div>
             <input
               @keydown.enter.prevent="(e: any) => { if (e.target.value.trim()) { newTaskTags.push(e.target.value.trim()); e.target.value = '' } }"
-              type="text" placeholder="Add tag and press Enter" class="input"
+              type="text" :placeholder="t('board.addTagHint')" class="input"
             />
           </div>
 
           <button @click="saveTask" :disabled="saving || !newTaskTitle.trim()" class="btn-primary w-full">
             <Loader2 v-if="saving" :size="18" class="animate-spin" />
-            {{ saving ? 'Saving...' : (editingTask ? 'Update Task' : 'Create Task') }}
+            {{ saving ? t('common.saving') : (editingTask ? t('board.updateTask') : t('board.createTask')) }}
           </button>
         </div>
 
         <!-- Comments -->
         <div v-if="editingTask" class="mt-6 pt-6 border-t border-surface-200 dark:border-surface-800">
-          <h3 class="text-sm font-semibold mb-3 flex items-center gap-2"><MessageSquare :size="16" /> Comments</h3>
+          <h3 class="text-sm font-semibold mb-3 flex items-center gap-2"><MessageSquare :size="16" /> {{ t('board.comments') }}</h3>
           <div class="space-y-3 mb-3 max-h-40 overflow-y-auto">
             <div v-for="comment in editingTask.comments" :key="comment.id" class="flex gap-2">
               <img :src="comment.user.avatar || ''" :alt="comment.user.name" class="w-7 h-7 rounded-full bg-surface-200 shrink-0" />
@@ -616,7 +650,7 @@ const hasActiveFilters = computed(() => {
             </div>
           </div>
           <div class="flex gap-2">
-            <input v-model="commentText" type="text" placeholder="Write a comment..." class="input" @keyup.enter="addComment(editingTask)" />
+            <input v-model="commentText" type="text" :placeholder="t('board.writeComment')" class="input" @keyup.enter="addComment(editingTask)" />
             <button @click="addComment(editingTask)" :disabled="!commentText.trim()" class="btn-primary px-3">
               <Send :size="16" />
             </button>
@@ -630,7 +664,7 @@ const hasActiveFilters = computed(() => {
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2">
             <Users :size="20" class="text-primary-500" />
-            <h2 class="text-lg font-semibold">Board Members</h2>
+            <h2 class="text-lg font-semibold">{{ t('board.members') }}</h2>
           </div>
           <button @click="showMembers = false" class="btn-ghost p-1"><X :size="18" /></button>
         </div>
@@ -648,19 +682,36 @@ const hasActiveFilters = computed(() => {
             </div>
             <span class="badge flex items-center gap-1" :class="memberRoleColors[member.role]">
               <component :is="memberRoleIcons[member.role]" :size="10" />
-              {{ member.role }}
+              {{ t(`board.memberRoles.${member.role}`) }}
             </span>
+            <button
+              v-if="canManageMembers && member.userId !== authStore.user?.id && member.role !== 'OWNER'"
+              @click="handleRemoveMember(member.userId)"
+              class="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+              :title="t('board.removeMember')"
+            >
+              <UserMinus :size="14" />
+            </button>
           </div>
         </div>
 
         <div v-if="boardMembers.length === 0" class="text-center py-8 text-sm text-surface-400">
-          No members yet
+          {{ t('board.noMembers') }}
         </div>
 
-        <div v-if="isBoardOwner" class="mt-4 pt-4 border-t border-surface-200 dark:border-surface-800">
-          <div class="flex items-center gap-2">
-            <UserPlus :size="16" class="text-surface-400" />
-            <p class="text-xs text-surface-500">As the board owner, you can manage member roles and invitations.</p>
+        <div v-if="canManageMembers" class="mt-4 pt-4 border-t border-surface-200 dark:border-surface-800">
+          <label class="block text-sm font-medium mb-1.5">{{ t('board.addMember') }}</label>
+          <div class="flex gap-2">
+            <input
+              v-model="newMemberEmail"
+              type="email"
+              placeholder="user@example.com"
+              class="input flex-1"
+              @keyup.enter="handleAddMember"
+            />
+            <button @click="handleAddMember" :disabled="addingMember || !newMemberEmail.trim()" class="btn-primary px-4">
+              <UserPlus :size="16" />
+            </button>
           </div>
         </div>
       </div>

@@ -536,11 +536,11 @@ export default {
     recentCheckins: 'Recent check-ins',
     stress: 'Stress',
     moods: {
-      great: 'Great',
-      good: 'Good',
-      okay: 'Okay',
-      stressed: 'Stressed',
-      burnout: 'Burnout',
+      GREAT: 'Great',
+      GOOD: 'Good',
+      OKAY: 'Okay',
+      STRESSED: 'Stressed',
+      OVERWHELMED: 'Overwhelmed',
     },
   },
 }

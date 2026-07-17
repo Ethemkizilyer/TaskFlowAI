@@ -10,7 +10,7 @@ import {
   Star, ChevronDown, Github, Twitter, Linkedin
 } from 'lucide-vue-next'
 
-const { t } = useI18n()
+const { t, tm } = useI18n()
 const router = useRouter()
 const themeStore = useThemeStore()
 
@@ -316,7 +316,7 @@ const formatStat = (val: number, decimal?: boolean) => {
               {{ t('landing.ai.subtitle') }}
             </p>
             <ul class="space-y-3">
-              <li v-for="(cap, idx) in t('landing.ai.features') as any" :key="idx" class="flex items-start gap-3">
+              <li v-for="(cap, idx) in tm('landing.ai.features') as any" :key="idx" class="flex items-start gap-3">
                 <div class="w-5 h-5 rounded-full bg-violet-500/20 flex items-center justify-center shrink-0 mt-0.5">
                   <Check :size="12" class="text-violet-600" />
                 </div>

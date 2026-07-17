@@ -22,14 +22,14 @@ const stress = ref(3)
 const workload = ref(3)
 
 const moodConfig: Record<string, { emoji: string; color: string; bg: string; icon: any }> = {
-  great: { emoji: '😄', color: 'text-green-600 dark:text-green-400', bg: 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800', icon: Smile },
-  good: { emoji: '🙂', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800', icon: Smile },
-  okay: { emoji: '😐', color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800', icon: Meh },
-  stressed: { emoji: '😟', color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800', icon: Frown },
-  burnout: { emoji: '😫', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800', icon: AlertTriangle },
+  GREAT: { emoji: '😄', color: 'text-green-600 dark:text-green-400', bg: 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800', icon: Smile },
+  GOOD: { emoji: '🙂', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800', icon: Smile },
+  OKAY: { emoji: '😐', color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800', icon: Meh },
+  STRESSED: { emoji: '😟', color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800', icon: Frown },
+  OVERWHELMED: { emoji: '😫', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800', icon: AlertTriangle },
 }
 
-const moods = ['great', 'good', 'okay', 'stressed', 'burnout']
+const moods = ['GREAT', 'GOOD', 'OKAY', 'STRESSED', 'OVERWHELMED']
 
 const hasCheckedIn = computed(() => !!todayCheckin.value)
 
@@ -37,7 +37,7 @@ const overallMood = computed(() => {
   if (!teamPulse.value?.moodCounts) return null
   const counts = teamPulse.value.moodCounts
   let max = 0
-  let result = 'okay'
+  let result = 'OKAY'
   for (const [mood, count] of Object.entries(counts)) {
     if ((count as number) > max) {
       max = count as number
@@ -250,7 +250,7 @@ onMounted(() => {
               <div class="flex-1 h-6 rounded-full bg-surface-100 dark:bg-surface-800 overflow-hidden">
                 <div
                   class="h-full rounded-full transition-all"
-                  :class="mood === 'great' ? 'bg-green-500' : mood === 'good' ? 'bg-blue-500' : mood === 'okay' ? 'bg-yellow-500' : mood === 'stressed' ? 'bg-orange-500' : 'bg-red-500'"
+                  :class="mood === 'GREAT' ? 'bg-green-500' : mood === 'GOOD' ? 'bg-blue-500' : mood === 'OKAY' ? 'bg-yellow-500' : mood === 'STRESSED' ? 'bg-orange-500' : 'bg-red-500'"
                   :style="{ width: ((teamPulse.moodCounts[mood] || 0) / Math.max(teamPulse.totalMembers, 1) * 100) + '%' }"
                 ></div>
               </div>

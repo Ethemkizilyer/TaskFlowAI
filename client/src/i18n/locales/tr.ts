@@ -536,11 +536,11 @@ export default {
     recentCheckins: 'Son check-inler',
     stress: 'Stres',
     moods: {
-      great: 'Harika',
-      good: 'İyi',
-      okay: 'Normal',
-      stressed: 'Stresli',
-      burnout: 'Tükenmiş',
+      GREAT: 'Harika',
+      GOOD: 'İyi',
+      OKAY: 'Normal',
+      STRESSED: 'Stresli',
+      OVERWHELMED: 'Tükenmiş',
     },
   },
 }

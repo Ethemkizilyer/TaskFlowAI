@@ -2,7 +2,7 @@
 
 AI-Powered Real-Time Collaborative Task Management Board
 
-A modern, full-stack Kanban board application with AI integration (Google Gemini), real-time collaboration (Socket.io), and full Docker support.
+A modern, full-stack Kanban board application with AI integration (Google Gemini), real-time collaboration (Socket.io), role-based access control, team mood tracking, and full Docker support.
 
 ## Features
 
@@ -14,11 +14,20 @@ A modern, full-stack Kanban board application with AI integration (Google Gemini
   - Break down tasks into subtasks
   - Generate structured tasks from rough descriptions
   - Board-level AI analysis (risk detection, recommendations)
+- **6-Level Role Hierarchy** — Admin → Director → Manager → Team Leader → Team Member → Personnel
+- **Role-based access control** — granular permissions per role
 - **Authentication** — JWT-based with bcrypt password hashing
 - **Multi-board support** — create and manage multiple project boards
-- **Team collaboration** — invite members by email
+- **Board member management** — add members by email during board creation or afterward
+- **Team Pulse** — daily mood check-ins, stress & workload tracking, burnout risk detection
+- **Focus Sessions** — Pomodoro-style focus time tracking with streaks
+- **Automation** — trigger-based task automations per board
+- **Messaging** — built-in direct messaging and group conversations
+- **Notifications** — real-time in-app notification system
 - **Comments** on tasks
 - **Activity feed** — track all board actions
+- **Command Palette** — quick search & navigation
+- **i18n** — Turkish and English language support
 - **Dark mode** — beautiful dark theme by default
 - **Responsive** — works on desktop and mobile
 - **TypeScript** — full type safety across frontend and backend
@@ -33,6 +42,7 @@ A modern, full-stack Kanban board application with AI integration (Google Gemini
 | Database | PostgreSQL + Prisma ORM |
 | AI | Google Gemini API (free tier) |
 | Real-time | Socket.io |
+| i18n | vue-i18n (TR / EN) |
 | Container | Docker + docker-compose |
 
 ## Quick Start
@@ -94,12 +104,16 @@ Open http://localhost:5173
 
 ## Demo Accounts
 
-After running the seed script:
+After running the seed script (password for all: `123456`):
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@taskflow.ai | admin123 |
-| Member | demo@taskflow.ai | user123 |
+| Role | Email |
+|------|-------|
+| Admin | admin@taskflow.ai |
+| Director | director@taskflow.ai |
+| Manager | manager@taskflow.ai |
+| Team Leader | leader@taskflow.ai |
+| Team Member | member@taskflow.ai |
+| Personnel | personnel@taskflow.ai |
 
 ## API Endpoints
 
@@ -111,10 +125,10 @@ After running the seed script:
 
 ### Boards
 - `GET /api/boards` — List user's boards
-- `POST /api/boards` — Create board
-- `GET /api/boards/:id` — Get board with tasks
+- `POST /api/boards` — Create board (supports `memberEmails` array for inline member addition)
+- `GET /api/boards/:id` — Get board with tasks, columns, and members
 - `PATCH /api/boards/:id` — Update board
-- `DELETE /api/boards/:id` — Delete board
+- `DELETE /api/boards/:id` — Delete board (soft delete)
 - `POST /api/boards/:id/members` — Add member by email
 - `DELETE /api/boards/:id/members/:userId` — Remove member
 
@@ -122,7 +136,7 @@ After running the seed script:
 - `POST /api/boards/:boardId/tasks` — Create task
 - `PATCH /api/boards/:boardId/tasks/:taskId` — Update task
 - `PATCH /api/boards/:boardId/tasks/:taskId/move` — Move task (drag-drop)
-- `DELETE /api/boards/:boardId/tasks/:taskId` — Delete task
+- `DELETE /api/boards/:boardId/tasks/:taskId` — Delete task (soft delete)
 - `POST /api/boards/:boardId/tasks/:taskId/comments` — Add comment
 
 ### AI
@@ -132,6 +146,33 @@ After running the seed script:
 - `POST /api/ai/generate-subtasks` — AI generate subtasks
 - `POST /api/ai/generate-task` — AI generate task from description
 - `POST /api/ai/analyze-board/:boardId` — AI analyze board health
+
+### Team Pulse
+- `POST /api/mood/checkin` — Daily mood check-in (mood, stress, workload, note)
+- `GET /api/mood/today` — Get today's check-in
+- `GET /api/mood/team-pulse` — Get team mood overview (distribution, burnout risk, weekly trend)
+
+### Focus Sessions
+- `POST /api/focus/start` — Start focus session
+- `POST /api/focus/stop` — Stop focus session
+- `GET /api/focus/today` — Today's focus stats
+- `GET /api/focus/week` — Weekly focus stats & streak
+
+### Automations
+- `GET /api/automations` — List automations
+- `POST /api/automations` — Create automation
+- `PATCH /api/automations/:id/toggle` — Enable/disable automation
+- `DELETE /api/automations/:id` — Delete automation
+
+### Notifications
+- `GET /api/notifications` — List notifications
+- `PATCH /api/notifications/:id/read` — Mark as read
+- `PATCH /api/notifications/read-all` — Mark all as read
+
+### Users (Admin)
+- `GET /api/users` — List all users (admin only)
+- `PATCH /api/users/:id/role` — Update user role (admin only)
+- `PATCH /api/users/:id/status` — Activate/deactivate user (admin only)
 
 ### Socket.io Events
 - `board:join` / `board:leave` — Join/leave board room
@@ -152,18 +193,18 @@ taskflow-ai/
 │   ├── package.json
 │   ├── tsconfig.json
 │   ├── prisma/
-│   │   ├── schema.prisma
-│   │   └── seed.ts
+│   │   ├── schema.prisma       # DB schema with enums, indexes, soft delete
+│   │   └── seed.ts             # Seed script (6 role-based users)
 │   └── src/
-│       ├── server.ts          # Entry point
-│       ├── app.ts             # Express app
-│       ├── config/            # Config & Prisma client
-│       ├── types/             # TypeScript types
-│       ├── middleware/        # Auth & error handling
-│       ├── controllers/       # Route controllers
-│       ├── routes/            # API routes
-│       ├── services/          # AI service (Gemini)
-│       └── sockets/           # Socket.io handler
+│       ├── server.ts           # Entry point
+│       ├── app.ts              # Express app with Helmet, CORS, rate limit
+│       ├── config/             # Config, Prisma client (soft delete middleware), permissions
+│       ├── types/              # TypeScript types
+│       ├── middleware/         # Auth, admin, error handling
+│       ├── controllers/        # Auth, Board, Task, User, Mood, Focus, Automation, Notification
+│       ├── routes/             # API routes
+│       ├── services/           # AI service (Gemini)
+│       └── sockets/            # Socket.io handler
 └── client/
     ├── Dockerfile
     ├── nginx.conf
@@ -173,14 +214,16 @@ taskflow-ai/
     ├── tailwind.config.js
     ├── index.html
     └── src/
-        ├── main.ts            # Entry point
-        ├── App.vue            # Root component
-        ├── style.css          # Tailwind styles
-        ├── types/             # TypeScript types
-        ├── api/               # Axios client & Socket.io
-        ├── stores/            # Pinia stores (auth, board)
-        ├── router/            # Vue Router
-        └── views/             # Pages (Login, Register, Dashboard, Board)
+        ├── main.ts             # Entry point
+        ├── App.vue             # Root component
+        ├── style.css           # Tailwind styles
+        ├── types/              # TypeScript types
+        ├── api/                # Axios client & Socket.io
+        ├── stores/             # Pinia stores (auth, board, theme)
+        ├── router/             # Vue Router
+        ├── i18n/               # Turkish & English locales
+        ├── components/         # Navbar, NotificationBadge, LanguageSwitcher
+        └── views/              # Login, Register, Landing, Dashboard, Board, TeamPulse, Focus, Messages, Profile, Admin, Panels
 ```
 
 ## Getting a Free Gemini API Key
@@ -189,6 +232,17 @@ taskflow-ai/
 2. Sign in with your Google account
 3. Click "Create API Key"
 4. Copy the key and paste it in your `.env` file as `GEMINI_API_KEY`
+
+## Role Hierarchy & Permissions
+
+| Role | Level | Key Permissions |
+|------|-------|-----------------|
+| Admin | 6 | Full system access, user management |
+| Director | 5 | Department oversight, strategic management |
+| Manager | 4 | Team management, board creation, task assignment |
+| Team Leader | 3 | Team coordination, task management |
+| Team Member | 2 | Task execution, comments, mood check-in |
+| Personnel | 1 | Basic task view, limited actions |
 
 ## License
 

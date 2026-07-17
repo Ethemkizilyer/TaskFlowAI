@@ -116,6 +116,14 @@ export function emitBoardEvent(boardId: string, event: string, data: any) {
   if (io) io.to(`board:${boardId}`).emit(event, data);
 }
 
+export function emitNotification(userId: string, notification: any) {
+  if (io) io.to(`user:${userId}`).emit('notification:received', notification);
+}
+
+export function emitBroadcast(notification: any) {
+  if (io) io.emit('notification:received', notification);
+}
+
 export function getIO(): SocketServer | null {
   return io;
 }

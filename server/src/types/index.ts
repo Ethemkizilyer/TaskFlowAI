@@ -16,6 +16,9 @@ export interface ApiResponse<T = any> {
   data?: T;
   message?: string;
   error?: string;
+  details?: Array<{ field: string; message: string }>;
+  field?: string[];
+  code?: string;
   meta?: {
     page?: number;
     limit?: number;

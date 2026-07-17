@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthenticatedRequest, ApiResponse } from '../types';
 import { emitBoardEvent } from '../sockets/socketHandler';
+import { createNotification } from './notificationController';
 
 const createTaskSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
@@ -11,8 +12,8 @@ const createTaskSchema = z.object({
   status: z.enum(['BACKLOG', 'TODO', 'IN_PROGRESS', 'REVIEW', 'DONE']).optional(),
   tags: z.array(z.string()).optional(),
   dueDate: z.string().datetime().optional(),
-  columnId: z.string().optional(),
-  assigneeId: z.string().optional(),
+  columnId: z.string().nullable().optional(),
+  assigneeId: z.string().nullable().optional(),
 });
 
 const updateTaskSchema = z.object({
@@ -109,10 +110,23 @@ export const updateTask = async (
       return res.status(404).json({ success: false, error: 'Task not found' });
     }
 
+    let statusToSet = data.status;
+    if (data.columnId !== undefined && data.columnId !== task.columnId) {
+      if (data.columnId) {
+        const newColumn = await prisma.column.findUnique({ where: { id: data.columnId } });
+        if (newColumn) {
+          statusToSet = newColumn.status;
+        }
+      } else {
+        statusToSet = 'BACKLOG' as any;
+      }
+    }
+
     const updated = await prisma.task.update({
       where: { id: taskId },
       data: {
         ...data,
+        status: statusToSet,
         dueDate: data.dueDate !== undefined ? (data.dueDate ? new Date(data.dueDate) : null) : undefined,
       },
       include: {
@@ -127,6 +141,18 @@ export const updateTask = async (
     if (data.status && data.status !== task.status) changes.push(`status changed to ${data.status}`);
     if (data.assigneeId !== undefined && data.assigneeId !== task.assigneeId) {
       changes.push(data.assigneeId ? 'assigned to a member' : 'unassigned');
+      if (data.assigneeId && data.assigneeId !== req.userId) {
+        await createNotification(
+          data.assigneeId,
+          'TASK_ASSIGNED',
+          'New task assigned',
+          `You have been assigned to "${task.title}"`,
+          { taskId, boardId, taskTitle: task.title },
+          req.userId,
+          boardId,
+          taskId
+        );
+      }
     }
 
     if (changes.length > 0) {
@@ -139,6 +165,37 @@ export const updateTask = async (
           userId: req.userId!,
         },
       });
+    }
+
+    // Notify board members when task is marked as DONE
+    if (statusToSet === 'DONE' && task.status !== 'DONE') {
+      const board = await prisma.board.findUnique({
+        where: { id: boardId },
+        select: {
+          ownerId: true,
+          members: { select: { userId: true } },
+        },
+      });
+      if (board) {
+        const memberIds = [
+          board.ownerId,
+          ...board.members.map((m) => m.userId),
+        ].filter((id) => id !== req.userId);
+        await Promise.all(
+          memberIds.map((userId) =>
+            createNotification(
+              userId,
+              'TASK_UPDATED',
+              'Task completed',
+              `"${task.title}" has been marked as done`,
+              { taskId, boardId, taskTitle: task.title },
+              req.userId,
+              boardId,
+              taskId
+            )
+          )
+        );
+      }
     }
 
     emitBoardEvent(boardId, 'task:updated', updated);
@@ -179,12 +236,11 @@ export const moveTask = async (
           data: { position: { increment: 1 } },
         });
 
+        const column = columnId ? await tx.column.findUnique({ where: { id: columnId } }) : null;
         await tx.task.update({
           where: { id: taskId },
-          data: { columnId, position },
+          data: { columnId, position, status: column?.status || 'BACKLOG' },
         });
-
-        const column = columnId ? await tx.column.findUnique({ where: { id: columnId } }) : null;
         await tx.activity.create({
           data: {
             type: 'TASK_MOVED',
@@ -221,6 +277,37 @@ export const moveTask = async (
         comments: { include: { user: { select: { id: true, name: true, avatar: true } } }, orderBy: { createdAt: 'desc' } },
       },
     });
+
+    // Notify board members when task is moved to DONE column
+    if (updated?.status === 'DONE' && task.status !== 'DONE') {
+      const board = await prisma.board.findUnique({
+        where: { id: boardId },
+        select: {
+          ownerId: true,
+          members: { select: { userId: true } },
+        },
+      });
+      if (board) {
+        const memberIds = [
+          board.ownerId,
+          ...board.members.map((m) => m.userId),
+        ].filter((id) => id !== req.userId);
+        await Promise.all(
+          memberIds.map((userId) =>
+            createNotification(
+              userId,
+              'TASK_UPDATED',
+              'Task completed',
+              `"${task.title}" has been marked as done`,
+              { taskId, boardId, taskTitle: task.title },
+              req.userId,
+              boardId,
+              taskId
+            )
+          )
+        );
+      }
+    }
 
     emitBoardEvent(boardId, 'task:moved', { taskId, columnId, position, task: updated });
 
@@ -286,6 +373,20 @@ export const addComment = async (
     });
 
     emitBoardEvent(boardId, 'comment:added', { taskId, comment });
+
+    const task = await prisma.task.findUnique({ where: { id: taskId }, select: { title: true, assigneeId: true } });
+    if (task?.assigneeId && task.assigneeId !== req.userId) {
+      await createNotification(
+        task.assigneeId,
+        'COMMENT_RECEIVED',
+        'New comment on your task',
+        `Someone commented on "${task.title}"`,
+        { taskId, boardId, commentId: comment.id },
+        req.userId,
+        boardId,
+        taskId
+      );
+    }
 
     return res.status(201).json({ success: true, data: comment, message: 'Comment added' });
   } catch (error) {

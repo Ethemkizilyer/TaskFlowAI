@@ -30,6 +30,30 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/briefing',
+      name: 'briefing',
+      component: () => import('@/views/BriefingView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/focus',
+      name: 'focus',
+      component: () => import('@/views/FocusView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/automations',
+      name: 'automations',
+      component: () => import('@/views/AutomationView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/team-pulse',
+      name: 'team-pulse',
+      component: () => import('@/views/TeamPulseView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/board/:id',
       name: 'board',
       component: () => import('@/views/BoardView.vue'),

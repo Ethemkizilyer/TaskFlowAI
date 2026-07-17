@@ -58,7 +58,7 @@ export const useBoardStore = defineStore('board', () => {
     }
   }
 
-  const createBoard = async (data: { title: string; description?: string; color?: string }) => {
+  const createBoard = async (data: { title: string; description?: string; color?: string; memberEmails?: string[] }) => {
     const res = await boardApi.create(data)
     await fetchBoards()
     return res.data.data
@@ -153,6 +153,16 @@ export const useBoardStore = defineStore('board', () => {
     }
   }
 
+  const addMember = async (boardId: string, email: string) => {
+    await boardApi.addMember(boardId, email)
+    await fetchBoard(boardId)
+  }
+
+  const removeMember = async (boardId: string, userId: string) => {
+    await boardApi.removeMember(boardId, userId)
+    await fetchBoard(boardId)
+  }
+
   return {
     boards,
     currentBoard,
@@ -171,6 +181,8 @@ export const useBoardStore = defineStore('board', () => {
     moveTask,
     deleteTask,
     addComment,
+    addMember,
+    removeMember,
     handleSocketTaskCreated,
     handleSocketTaskUpdated,
     handleSocketTaskMoved,

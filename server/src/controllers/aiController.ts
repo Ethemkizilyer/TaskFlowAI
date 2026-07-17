@@ -93,7 +93,9 @@ export const analyzeBoard = async (
       return res.status(404).json({ success: false, error: 'Board not found' });
     }
 
-    const analysis = await aiService.analyzeBoardTasks(board.tasks);
+    const analysis = await aiService.analyzeBoardTasks(
+      board.tasks.map(t => ({ ...t, description: t.description ?? undefined }))
+    );
     return res.json({ success: true, data: analysis });
   } catch (error) {
     next(error);
@@ -111,6 +113,119 @@ export const generateTaskFromDescription = async (
 
     const task = await aiService.generateTaskFromDescription(description);
     return res.json({ success: true, data: task });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDailyBriefing = async (
+  req: AuthenticatedRequest,
+  res: Response<ApiResponse>,
+  next: NextFunction
+) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    const now = new Date();
+    const yesterdayStart = new Date(now);
+    yesterdayStart.setDate(now.getDate() - 1);
+    yesterdayStart.setHours(0, 0, 0, 0);
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+
+    // Yesterday's activities
+    const yesterdayActivities = await prisma.activity.findMany({
+      where: {
+        userId: req.userId,
+        createdAt: { gte: yesterdayStart, lt: todayStart },
+      },
+      include: { task: { select: { title: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    // User's boards
+    const boards = await prisma.board.findMany({
+      where: {
+        OR: [{ ownerId: req.userId }, { members: { some: { userId: req.userId } } }],
+      },
+      include: {
+        tasks: { select: { id: true, status: true } },
+      },
+    });
+
+    // All tasks assigned to user
+    const allTasks = await prisma.task.findMany({
+      where: { assigneeId: req.userId },
+      include: { board: { select: { title: true } } },
+    });
+
+    const todayTasks = allTasks
+      .filter(t => t.status !== 'DONE')
+      .map(t => ({
+        title: t.title,
+        priority: t.priority,
+        status: t.status,
+        dueDate: t.dueDate?.toISOString() || undefined,
+        boardTitle: t.board.title,
+      }));
+
+    const overdueTasks = allTasks
+      .filter(t => t.status !== 'DONE' && t.dueDate && t.dueDate < todayStart)
+      .map(t => ({
+        title: t.title,
+        priority: t.priority,
+        boardTitle: t.board.title,
+        daysOverdue: Math.floor((todayStart.getTime() - t.dueDate!.getTime()) / (1000 * 60 * 60 * 24)),
+      }));
+
+    const boardSummaries = boards.map(b => ({
+      title: b.title,
+      taskCount: b.tasks.length,
+      doneCount: b.tasks.filter(t => t.status === 'DONE').length,
+    }));
+
+    // Team stats
+    const teamMemberIds = new Set<string>();
+    boards.forEach(b => {
+      teamMemberIds.add(b.ownerId);
+    });
+    const boardMembers = await prisma.boardMember.findMany({
+      where: { boardId: { in: boards.map(b => b.id) } },
+      select: { userId: true },
+    });
+    boardMembers.forEach(m => teamMemberIds.add(m.userId));
+
+    const completedToday = await prisma.activity.count({
+      where: {
+        createdAt: { gte: todayStart },
+        type: 'TASK_UPDATED',
+        description: { contains: 'DONE' },
+      },
+    });
+
+    const briefing = await aiService.generateDailyBriefing({
+      userName: user.name,
+      role: user.role,
+      yesterdayActivities: yesterdayActivities.map(a => ({
+        type: a.type,
+        description: a.description,
+        taskTitle: a.task?.title,
+      })),
+      todayTasks,
+      overdueTasks,
+      teamStats: {
+        totalMembers: teamMemberIds.size,
+        activeTasks: todayTasks.length,
+        completedToday,
+      },
+      boards: boardSummaries,
+    });
+
+    return res.json({ success: true, data: briefing });
   } catch (error) {
     next(error);
   }

@@ -4,13 +4,15 @@ import { useAuthStore } from '@/stores/auth'
 import { adminApi } from '@/api'
 import { Building2, Users, TrendingUp, AlertCircle, CheckCircle, Clock } from 'lucide-vue-next'
 import { ROLE_LABELS, ROLE_COLORS } from '@/types'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const authStore = useAuthStore()
 const stats = ref<any>({})
 const users = ref<any[]>([])
 const loading = ref(true)
 
-const roleLabel = computed(() => authStore.user ? ROLE_LABELS[authStore.user.role] : '')
+const roleLabel = computed(() => authStore.user ? t(`roles.${authStore.user.role}`) : '')
 const roleColor = computed(() => authStore.user ? ROLE_COLORS[authStore.user.role] : '')
 
 const fetchStats = async () => {
@@ -46,8 +48,8 @@ onMounted(() => {
         <Building2 :size="20" class="text-purple-600 dark:text-purple-400" />
       </div>
       <div>
-        <h1 class="text-2xl font-bold">Director Panel</h1>
-        <p class="text-sm text-surface-500">Department oversight and strategic management</p>
+        <h1 class="text-2xl font-bold">{{ t('panels.director.title') }}</h1>
+        <p class="text-sm text-surface-500">{{ t('panels.director.subtitle') }}</p>
       </div>
     </div>
 
@@ -59,7 +61,7 @@ onMounted(() => {
           </div>
           <div>
             <p class="text-2xl font-bold">{{ stats.totalUsers || 0 }}</p>
-            <p class="text-xs text-surface-500">Total Users</p>
+            <p class="text-xs text-surface-500">{{ t('panels.director.totalUsers') }}</p>
           </div>
         </div>
       </div>
@@ -70,7 +72,7 @@ onMounted(() => {
           </div>
           <div>
             <p class="text-2xl font-bold">{{ stats.activeUsers || 0 }}</p>
-            <p class="text-xs text-surface-500">Active Users</p>
+            <p class="text-xs text-surface-500">{{ t('panels.director.activeUsers') }}</p>
           </div>
         </div>
       </div>
@@ -81,7 +83,7 @@ onMounted(() => {
           </div>
           <div>
             <p class="text-2xl font-bold">{{ stats.pendingUsers || 0 }}</p>
-            <p class="text-xs text-surface-500">Pending Approvals</p>
+            <p class="text-xs text-surface-500">{{ t('panels.director.pendingApprovals') }}</p>
           </div>
         </div>
       </div>
@@ -92,14 +94,14 @@ onMounted(() => {
           </div>
           <div>
             <p class="text-2xl font-bold">{{ stats.totalBoards || 0 }}</p>
-            <p class="text-xs text-surface-500">Active Boards</p>
+            <p class="text-xs text-surface-500">{{ t('panels.director.activeBoards') }}</p>
           </div>
         </div>
       </div>
     </div>
 
     <div class="card p-4">
-      <h2 class="font-semibold text-lg mb-4">User Overview</h2>
+      <h2 class="font-semibold text-lg mb-4">{{ t('panels.director.userOverview') }}</h2>
       <div v-if="loading" class="flex items-center justify-center py-8">
         <div class="animate-spin w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full" />
       </div>
@@ -115,7 +117,7 @@ onMounted(() => {
             <p class="text-xs text-surface-500">{{ user.email }}</p>
           </div>
           <span class="text-[10px] font-bold px-2 py-0.5 rounded-full" :class="ROLE_COLORS[user.role as keyof typeof ROLE_COLORS]">
-            {{ ROLE_LABELS[user.role as keyof typeof ROLE_LABELS] }}
+            {{ t(`roles.${user.role}`) }}
           </span>
           <span
             class="text-[10px] font-medium px-2 py-0.5 rounded-full"

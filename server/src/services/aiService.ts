@@ -178,6 +178,95 @@ Make the title clear and actionable. The description should include acceptance c
   isConfigured(): boolean {
     return this.ai !== null;
   }
+
+  async generateDailyBriefing(data: {
+    userName: string;
+    role: string;
+    yesterdayActivities: Array<{ type: string; description: string; taskTitle?: string }>;
+    todayTasks: Array<{ title: string; priority: string; status: string; dueDate?: string; boardTitle?: string }>;
+    overdueTasks: Array<{ title: string; priority: string; boardTitle?: string; daysOverdue: number }>;
+    teamStats: { totalMembers: number; activeTasks: number; completedToday: number };
+    boards: Array<{ title: string; taskCount: number; doneCount: number }>;
+  }): Promise<{
+    greeting: string;
+    summary: string;
+    priorities: Array<{ title: string; reason: string; urgency: 'high' | 'medium' | 'low' }>;
+    risks: string[];
+    recommendations: string[];
+    focusTip: string;
+  }> {
+    try {
+      const prompt = `You are an AI productivity coach for a project management app called TaskFlow AI. Generate a personalized daily briefing for the user.
+
+User: ${data.userName} (Role: ${data.role})
+
+Yesterday's activities:
+${data.yesterdayActivities.map(a => `- ${a.description}`).join('\n') || '- No activity recorded'}
+
+Today's tasks:
+${data.todayTasks.map(t => `- [${t.priority}] ${t.title} (${t.status})${t.boardTitle ? ' in ' + t.boardTitle : ''}${t.dueDate ? ' due: ' + t.dueDate : ''}`).join('\n') || '- No tasks assigned today'}
+
+Overdue tasks:
+${data.overdueTasks.map(t => `- [${t.priority}] ${t.title} (${t.daysOverdue} days overdue)${t.boardTitle ? ' in ' + t.boardTitle : ''}`).join('\n') || '- None'}
+
+Team stats: ${data.teamStats.totalMembers} members, ${data.teamStats.activeTasks} active tasks, ${data.teamStats.completedToday} completed today
+
+Boards:
+${data.boards.map(b => `- ${b.title}: ${b.doneCount}/${b.taskCount} done`).join('\n') || '- No boards'}
+
+Respond ONLY in valid JSON:
+{
+  "greeting": "personalized greeting with user's name",
+  "summary": "2-3 sentence overview of their current work state",
+  "priorities": [{"title": "task title", "reason": "why it's priority", "urgency": "high|medium|low"}],
+  "risks": ["risk 1", "risk 2"],
+  "recommendations": ["actionable recommendation 1", "recommendation 2"],
+  "focusTip": "one practical productivity tip for today"
+}
+
+Keep it concise, motivating, and actionable. Maximum 3 priorities, 3 risks, 3 recommendations.`;
+
+      const text = await this.generate(prompt);
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      return this.fallbackBriefing(data);
+    } catch (error) {
+      console.error('AI generateDailyBriefing error:', error);
+      return this.fallbackBriefing(data);
+    }
+  }
+
+  private fallbackBriefing(data: {
+    userName: string;
+    yesterdayActivities: any[];
+    todayTasks: any[];
+    overdueTasks: any[];
+  }): {
+    greeting: string;
+    summary: string;
+    priorities: Array<{ title: string; reason: string; urgency: 'high' | 'medium' | 'low' }>;
+    risks: string[];
+    recommendations: string[];
+    focusTip: string;
+  } {
+    const overdue = data.overdueTasks.length;
+    const today = data.todayTasks.length;
+    const yesterday = data.yesterdayActivities.length;
+    return {
+      greeting: `Good morning, ${data.userName}!`,
+      summary: `You have ${today} tasks today${overdue > 0 ? ` and ${overdue} overdue` : ''}. Yesterday you completed ${yesterday} activit${yesterday === 1 ? 'y' : 'ies'}.`,
+      priorities: data.overdueTasks.slice(0, 3).map((t: any) => ({
+        title: t.title,
+        reason: `${t.daysOverdue} days overdue`,
+        urgency: 'high' as const,
+      })),
+      risks: overdue > 0 ? [`${overdue} overdue task${overdue > 1 ? 's' : ''} need attention`] : [],
+      recommendations: overdue > 0 ? ['Address overdue tasks first'] : ['Review your task list and set priorities'],
+      focusTip: 'Start with your most important task before checking emails or messages.',
+    };
+  }
 }
 
 export default new AIService();

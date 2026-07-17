@@ -3,7 +3,9 @@ import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { adminApi } from '@/api'
 import { Briefcase, Users, CheckSquare, TrendingUp } from 'lucide-vue-next'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const authStore = useAuthStore()
 const stats = ref<any>({})
 const loading = ref(true)
@@ -31,8 +33,8 @@ onMounted(() => {
         <Briefcase :size="20" class="text-blue-600 dark:text-blue-400" />
       </div>
       <div>
-        <h1 class="text-2xl font-bold">Manager Panel</h1>
-        <p class="text-sm text-surface-500">Team management and task oversight</p>
+        <h1 class="text-2xl font-bold">{{ t('panels.manager.title') }}</h1>
+        <p class="text-sm text-surface-500">{{ t('panels.manager.subtitle') }}</p>
       </div>
     </div>
 
@@ -44,7 +46,7 @@ onMounted(() => {
           </div>
           <div>
             <p class="text-2xl font-bold">{{ stats.totalUsers || 0 }}</p>
-            <p class="text-xs text-surface-500">Team Members</p>
+            <p class="text-xs text-surface-500">{{ t('panels.manager.teamMembers') }}</p>
           </div>
         </div>
       </div>
@@ -55,7 +57,7 @@ onMounted(() => {
           </div>
           <div>
             <p class="text-2xl font-bold">{{ stats.totalTasks || 0 }}</p>
-            <p class="text-xs text-surface-500">Total Tasks</p>
+            <p class="text-xs text-surface-500">{{ t('panels.manager.totalTasks') }}</p>
           </div>
         </div>
       </div>
@@ -66,7 +68,7 @@ onMounted(() => {
           </div>
           <div>
             <p class="text-2xl font-bold">{{ stats.completedTasks || 0 }}</p>
-            <p class="text-xs text-surface-500">Completed Tasks</p>
+            <p class="text-xs text-surface-500">{{ t('panels.manager.completedTasks') }}</p>
           </div>
         </div>
       </div>
@@ -77,17 +79,16 @@ onMounted(() => {
           </div>
           <div>
             <p class="text-2xl font-bold">{{ stats.totalBoards || 0 }}</p>
-            <p class="text-xs text-surface-500">Active Projects</p>
+            <p class="text-xs text-surface-500">{{ t('panels.manager.activeProjects') }}</p>
           </div>
         </div>
       </div>
     </div>
 
     <div class="card p-6">
-      <h2 class="font-semibold text-lg mb-2">Welcome, {{ authStore.user?.name }}</h2>
+      <h2 class="font-semibold text-lg mb-2">{{ t('panels.manager.welcome') }}, {{ authStore.user?.name }}</h2>
       <p class="text-sm text-surface-500">
-        As a Manager, you can manage teams, create boards, assign tasks, and view team analytics.
-        Use the navigation menu to access different sections of the application.
+        {{ t('panels.manager.description') }}
       </p>
     </div>
   </div>

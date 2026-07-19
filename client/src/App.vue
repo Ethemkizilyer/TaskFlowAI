@@ -8,6 +8,7 @@ import { connectSocket, disconnectSocket, onNotificationReceived } from '@/api/s
 import { userApi } from '@/api'
 import Navbar from '@/components/Navbar.vue'
 import CommandPalette from '@/components/CommandPalette.vue'
+import ThreeBackground from '@/components/ThreeBackground.vue'
 
 const authStore = useAuthStore()
 const route = useRoute()
@@ -73,7 +74,12 @@ watch(() => authStore.token, (newToken, oldToken) => {
 </script>
 
 <template>
-  <div>
+  <div class="relative min-h-screen">
+    <!-- Subtle Three.js background for authenticated views -->
+    <div v-if="showNavbar" class="fixed inset-0 pointer-events-none z-0 opacity-40">
+      <ThreeBackground :density="60" :speed="0.3" color-mode="ocean" />
+    </div>
+
     <Navbar v-if="showNavbar" :notification-badge="notificationBadge" @notifications-read="notificationBadge = 0" />
     <CommandPalette v-if="showNavbar" />
     <router-view v-slot="{ Component }">

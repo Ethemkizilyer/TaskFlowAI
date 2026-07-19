@@ -133,9 +133,9 @@ export const getTeamPulse = async (
       ? workloadValues.reduce((a: number, b: number) => a + b, 0) / workloadValues.length
       : null;
 
-    // Burnout risk: users with stress >= 4 or mood = burnout/stressed
+    // Burnout risk: users with stress >= 4 or mood = OVERWHELMED/STRESSED
     const atRiskUsers = todayCheckins
-      .filter(c => c.mood === 'burnout' || c.mood === 'stressed' || (c.stress != null && c.stress >= 4))
+      .filter(c => c.mood === 'OVERWHELMED' || c.mood === 'STRESSED' || (c.stress != null && c.stress >= 4))
       .map(c => ({
         userId: c.user.id,
         name: c.user.name,
@@ -146,7 +146,7 @@ export const getTeamPulse = async (
 
     // Daily trend
     const dailyTrend: { date: string; avgMoodScore: number; count: number }[] = [];
-    const moodScoreMap: Record<string, number> = { great: 5, good: 4, okay: 3, stressed: 2, burnout: 1 };
+    const moodScoreMap: Record<string, number> = { GREAT: 5, GOOD: 4, OKAY: 3, STRESSED: 2, OVERWHELMED: 1 };
     for (let i = days - 1; i >= 0; i--) {
       const dayStart = new Date();
       dayStart.setDate(dayStart.getDate() - i);

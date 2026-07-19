@@ -8,7 +8,8 @@ import { userApi } from '@/api'
 import {
   LayoutDashboard, Settings, LogOut, Bell, Users, Activity,
   ChevronDown, Shield, Check, Trash2, MessageSquare, Sun, Moon,
-  Briefcase, Building2, UserCog, Search, Sparkles, Brain, Zap, Heart
+  Briefcase, Building2, UserCog, Search, Sparkles, Brain, Zap, Heart,
+  Calendar, BarChart3, Timer, UserCircle
 } from 'lucide-vue-next'
 import { ROLE_LABELS, ROLE_COLORS } from '@/types'
 import LanguageSwitcher from './LanguageSwitcher.vue'
@@ -256,8 +257,23 @@ watch(() => props.notificationBadge, (newVal) => {
             <button @click="navigate('/activity')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
               <Activity :size="16" class="text-surface-400" /> {{ t('nav.activity') }}
             </button>
+            <button @click="navigate('/calendar')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
+              <Calendar :size="16" class="text-surface-400" /> {{ t('nav.calendar') }}
+            </button>
+            <button @click="navigate('/reports')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
+              <BarChart3 :size="16" class="text-surface-400" /> {{ t('nav.reports') }}
+            </button>
+            <button @click="navigate('/time-tracking')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
+              <Timer :size="16" class="text-surface-400" /> {{ t('nav.timeTracking') }}
+            </button>
+            <button @click="navigate('/directory')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
+              <UserCircle :size="16" class="text-surface-400" /> {{ t('nav.directory') }}
+            </button>
+            <button @click="navigate('/settings')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
+              <Settings :size="16" class="text-surface-400" /> {{ t('nav.settings') }}
+            </button>
             <button @click="navigate('/profile')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
-              <Settings :size="16" class="text-surface-400" /> {{ t('nav.profile') }}
+              <UserCog :size="16" class="text-surface-400" /> {{ t('nav.profile') }}
             </button>
 
             <div v-if="canSeeAdmin || canSeeDirector || canSeeManager || canSeeTeamLeader" class="border-t border-surface-200 dark:border-surface-800 mt-1 pt-1">

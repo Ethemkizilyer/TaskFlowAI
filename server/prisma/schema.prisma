@@ -141,6 +141,8 @@ model User {
   focusSessions      FocusSession[]
   automations        Automation[]
   moodCheckins       MoodCheckin[]
+  timeEntries        TimeEntry[]
+  userSettings       UserSettings?
   deletedAt    DateTime?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
@@ -165,6 +167,7 @@ model Board {
   tasks        Task[]
   activity     Activity[]
   automations  Automation[]
+  timeEntries  TimeEntry[]
   deletedAt    DateTime?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -427,4 +430,65 @@ model MoodCheckin {
 
   @@index([userId, createdAt])
   @@map("mood_checkins")
+}
+
+model TimeEntry {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskTitle   String
+  boardId     String?
+  board       Board?   @relation(fields: [boardId], references: [id], onDelete: SetNull)
+  duration    Int
+  description String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, date])
+  @@index([boardId])
+  @@map("time_entries")
+}
+
+model UserSettings {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orgName              String?  @db.VarChar(255)
+  orgDomain            String?  @db.VarChar(255)
+  timezone             String?  @db.VarChar(100)
+  language             String?  @db.VarChar(10)
+  defaultBoardColor    String?  @db.VarChar(7)
+  autoArchiveDays      Int      @default(30)
+  allowGuestAccess     Boolean  @default(false)
+  requireApproval      Boolean  @default(true)
+  emailNotifications   Boolean  @default(true)
+  pushNotifications    Boolean  @default(true)
+  taskAssigned         Boolean  @default(true)
+  taskDueSoon          Boolean  @default(true)
+  taskOverdue          Boolean  @default(true)
+  boardUpdates         Boolean  @default(true)
+  teamPulseReminders   Boolean  @default(true)
+  aiBriefingDaily      Boolean  @default(true)
+  weeklyDigest         Boolean  @default(false)
+  mentionsOnly         Boolean  @default(false)
+  density              String   @default("comfortable") @db.VarChar(20)
+  accentColor          String   @default("cyan") @db.VarChar(20)
+  reduceMotion         Boolean  @default(false)
+  highContrast         Boolean  @default(false)
+  twoFactor            Boolean  @default(false)
+  sessionTimeout       String   @default("30") @db.VarChar(10)
+  passwordExpiry       String   @default("90") @db.VarChar(10)
+  ipWhitelist          String?  @db.Text
+  apiAccess            Boolean  @default(true)
+  auditLog             Boolean  @default(true)
+  intSlack             Boolean  @default(false)
+  intGithub            Boolean  @default(false)
+  intGoogleCalendar    Boolean  @default(false)
+  intWebhooks          Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@map("user_settings")
 }

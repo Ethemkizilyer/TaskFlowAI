@@ -106,14 +106,14 @@ Open http://localhost:5173
 
 After running the seed script (password for all: `123456`):
 
-| Role | Email |
-|------|-------|
-| Admin | admin@taskflow.ai |
-| Director | director@taskflow.ai |
-| Manager | manager@taskflow.ai |
-| Team Leader | leader@taskflow.ai |
-| Team Member | member@taskflow.ai |
-| Personnel | personnel@taskflow.ai |
+| Role | Emails |
+|------|--------|
+| Admin | admin@taskflow.ai, admin2@taskflow.ai |
+| Director | director@taskflow.ai, director2@taskflow.ai |
+| Manager | manager@taskflow.ai, manager2@taskflow.ai, manager3@taskflow.ai |
+| Team Leader | leader@taskflow.ai, leader2@taskflow.ai |
+| Team Member | member@taskflow.ai, member2@taskflow.ai, member3@taskflow.ai, member4@taskflow.ai |
+| Personnel | personnel@taskflow.ai, personnel2@taskflow.ai, personnel3@taskflow.ai |
 
 ## API Endpoints
 

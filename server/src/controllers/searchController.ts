@@ -115,6 +115,56 @@ export const globalSearch = async (
   }
 };
 
+export const getCalendarTasks = async (
+  req: AuthenticatedRequest,
+  res: Response<ApiResponse>,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.userId!;
+
+    const userBoards = await prisma.board.findMany({
+      where: {
+        OR: [
+          { ownerId: userId },
+          { members: { some: { userId } } },
+        ],
+      },
+      select: { id: true },
+    });
+    const boardIds = userBoards.map((b) => b.id);
+
+    const tasks = await prisma.task.findMany({
+      where: {
+        boardId: { in: boardIds },
+        dueDate: { not: null },
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        priority: true,
+        dueDate: true,
+        boardId: true,
+        board: { select: { id: true, title: true, color: true } },
+        assignee: { select: { id: true, name: true, avatar: true } },
+      },
+      orderBy: { dueDate: 'asc' },
+    });
+
+    return res.json({
+      success: true,
+      data: tasks.map((t) => ({
+        ...t,
+        dueDate: t.dueDate?.toISOString() || null,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getDashboardStats = async (
   req: AuthenticatedRequest,
   res: Response<ApiResponse>,
@@ -134,7 +184,7 @@ export const getDashboardStats = async (
     });
     const boardIds = userBoards.map((b) => b.id);
 
-    const [taskStatusCounts, taskPriorityCounts, recentActivity, boardsWithTasks] = await Promise.all([
+    const [taskStatusCounts, taskPriorityCounts, recentActivity, boardsWithTasks, overdueCount] = await Promise.all([
       prisma.task.groupBy({
         by: ['status'],
         where: { boardId: { in: boardIds } },
@@ -162,6 +212,14 @@ export const getDashboardStats = async (
           tasks: {
             select: { status: true },
           },
+        },
+      }),
+      prisma.task.count({
+        where: {
+          boardId: { in: boardIds },
+          dueDate: { lt: new Date() },
+          status: { not: 'DONE' },
+          deletedAt: null,
         },
       }),
     ]);
@@ -212,8 +270,72 @@ export const getDashboardStats = async (
         boardProgress,
         recentActivity,
         activityLast7Days: last7Days,
+        overdueTasks: overdueCount,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getTeamPerformance = async (
+  req: AuthenticatedRequest,
+  res: Response<ApiResponse>,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.userId!;
+
+    const userBoards = await prisma.board.findMany({
+      where: {
+        OR: [
+          { ownerId: userId },
+          { members: { some: { userId } } },
+        ],
+      },
+      select: { id: true },
+    });
+    const boardIds = userBoards.map((b) => b.id);
+
+    const tasks = await prisma.task.findMany({
+      where: { boardId: { in: boardIds }, assigneeId: { not: null } },
+      select: {
+        assigneeId: true,
+        status: true,
+        assignee: {
+          select: { id: true, name: true, avatar: true },
+        },
+      },
+    });
+
+    const userMap = new Map<string, { id: string; name: string; avatar: string; tasks: number; completed: number }>();
+
+    tasks.forEach((t) => {
+      if (!t.assigneeId || !t.assignee) return;
+      const existing = userMap.get(t.assigneeId);
+      if (existing) {
+        existing.tasks++;
+        if (t.status === 'DONE') existing.completed++;
+      } else {
+        userMap.set(t.assigneeId, {
+          id: t.assignee.id,
+          name: t.assignee.name,
+          avatar: t.assignee.avatar || '',
+          tasks: 1,
+          completed: t.status === 'DONE' ? 1 : 0,
+        });
+      }
+    });
+
+    const teamPerformance = Array.from(userMap.values())
+      .map((m) => ({
+        ...m,
+        rate: m.tasks > 0 ? Math.round((m.completed / m.tasks) * 100) : 0,
+      }))
+      .sort((a, b) => b.tasks - a.tasks)
+      .slice(0, 10);
+
+    return res.json({ success: true, data: teamPerformance });
   } catch (error) {
     next(error);
   }

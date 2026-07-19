@@ -159,3 +159,26 @@ export const moodApi = {
 export const dashboardApi = {
   getStats: () => api.get('/dashboard-stats'),
 }
+
+export const calendarApi = {
+  getTasks: () => api.get('/calendar/tasks'),
+}
+
+export const timeTrackingApi = {
+  getAll: () => api.get('/time-tracking'),
+  create: (data: { taskTitle: string; boardId?: string; duration: number; description?: string; date?: string }) =>
+    api.post('/time-tracking', data),
+  update: (id: string, data: Partial<{ taskTitle: string; boardId: string; duration: number; description: string; date: string }>) =>
+    api.patch(`/time-tracking/${id}`, data),
+  delete: (id: string) => api.delete(`/time-tracking/${id}`),
+  getStats: () => api.get('/time-tracking/stats'),
+}
+
+export const settingsApi = {
+  get: () => api.get('/settings'),
+  update: (data: Record<string, any>) => api.put('/settings', data),
+}
+
+export const reportsApi = {
+  getTeamPerformance: () => api.get('/reports/team-performance'),
+}

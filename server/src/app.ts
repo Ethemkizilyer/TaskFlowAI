@@ -15,6 +15,8 @@ import searchRoutes from './routes/searchRoutes';
 import focusRoutes from './routes/focusRoutes';
 import automationRoutes from './routes/automationRoutes';
 import moodRoutes from './routes/moodRoutes';
+import timeTrackingRoutes from './routes/timeTrackingRoutes';
+import settingsRoutes from './routes/settingsRoutes';
 import { notFound, errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -76,6 +78,8 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/focus', focusRoutes);
 app.use('/api/automations', automationRoutes);
 app.use('/api/mood', moodRoutes);
+app.use('/api/time-tracking', timeTrackingRoutes);
+app.use('/api/settings', settingsRoutes);
 app.use('/api', searchRoutes);
 
 app.use(notFound);

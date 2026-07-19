@@ -4,6 +4,8 @@ import { useRouter } from 'vue-router'
 import { useThemeStore } from '@/stores/theme'
 import { useI18n } from 'vue-i18n'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+import ThreeBackground from '@/components/ThreeBackground.vue'
+import { useScrollReveal, useScrollProgress } from '@/composables/useAnimations'
 import {
   Sparkles, ArrowRight, Sun, Moon, Check, Zap, Brain, Users,
   LayoutDashboard, MessageSquare, Shield, TrendingUp, Clock,
@@ -13,6 +15,9 @@ import {
 const { t, tm } = useI18n()
 const router = useRouter()
 const themeStore = useThemeStore()
+
+useScrollReveal()
+const scrollProgress = useScrollProgress()
 
 const scrolled = ref(false)
 const activeFaq = ref<number | null>(0)
@@ -70,13 +75,10 @@ onMounted(() => {
   if (el) observer.observe(el)
 })
 
-const faqs = computed(() => [
-  { q: t('landing.faq.items[0].q'), a: t('landing.faq.items[0].a') },
-  { q: t('landing.faq.items[1].q'), a: t('landing.faq.items[1].a') },
-  { q: t('landing.faq.items[2].q'), a: t('landing.faq.items[2].a') },
-  { q: t('landing.faq.items[3].q'), a: t('landing.faq.items[3].a') },
-  { q: t('landing.faq.items[4].q'), a: t('landing.faq.items[4].a') },
-])
+const faqs = computed(() => {
+  const items = tm('landing.faq.items') as Array<{ q: string; a: string }>
+  return items.map((item) => ({ q: item.q, a: item.a }))
+})
 
 const testimonials = [
   { name: 'Sarah Chen', role: 'Product Lead at AAAA', avatar: '', text: 'TaskFlow AI replaced 3 tools for us. The AI task breakdown alone saves my team 5+ hours per week.', stars: 5 },
@@ -102,11 +104,17 @@ const formatStat = (val: number, decimal?: boolean) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-white dark:bg-surface-950 overflow-x-hidden">
+  <div class="min-h-screen bg-white dark:bg-surface-950 overflow-x-hidden relative">
+    <!-- Scroll Progress Bar -->
+    <div class="scroll-progress" :style="{ width: scrollProgress * 100 + '%' }"></div>
+
+    <!-- Three.js Background -->
+    <ThreeBackground :density="120" :speed="0.5" color-mode="aurora" />
+
     <!-- Navbar -->
     <nav
       class="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
-      :class="scrolled ? 'glass shadow-sm border-b border-surface-200 dark:border-surface-800' : 'bg-transparent'"
+      :class="scrolled ? 'glass-strong shadow-lg border-b border-white/20 dark:border-surface-700/50' : 'bg-transparent'"
     >
       <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <div class="flex items-center gap-2">
@@ -120,6 +128,7 @@ const formatStat = (val: number, decimal?: boolean) => {
           <a href="#features" class="hover:text-primary-600 transition-colors">{{ t('landing.nav.features') }}</a>
           <a href="#ai" class="hover:text-primary-600 transition-colors">{{ t('landing.nav.ai') }}</a>
           <a href="#compare" class="hover:text-primary-600 transition-colors">{{ t('landing.nav.compare') }}</a>
+          <router-link to="/pricing" class="hover:text-primary-600 transition-colors">Pricing</router-link>
           <a href="#testimonials" class="hover:text-primary-600 transition-colors">{{ t('landing.nav.reviews') }}</a>
           <a href="#faq" class="hover:text-primary-600 transition-colors">{{ t('landing.nav.faq') }}</a>
         </div>
@@ -139,23 +148,23 @@ const formatStat = (val: number, decimal?: boolean) => {
     </nav>
 
     <!-- Hero -->
-    <section class="relative pt-32 pb-20 sm:pt-40 sm:pb-28 overflow-hidden">
-      <!-- Background blobs -->
-      <div class="absolute inset-0 grid-bg opacity-60"></div>
-      <div class="absolute top-20 -left-20 w-72 h-72 bg-primary-300/30 dark:bg-primary-700/20 rounded-full blur-3xl animate-blob"></div>
-      <div class="absolute top-40 right-0 w-96 h-96 bg-pink-300/20 dark:bg-pink-700/10 rounded-full blur-3xl animate-blob" style="animation-delay: 2s"></div>
-      <div class="absolute bottom-0 left-1/3 w-80 h-80 bg-violet-300/20 dark:bg-violet-700/10 rounded-full blur-3xl animate-blob" style="animation-delay: 4s"></div>
+    <section class="relative pt-32 pb-20 sm:pt-40 sm:pb-28 overflow-hidden z-10">
+      <!-- Gradient mesh overlay -->
+      <div class="absolute inset-0 mesh-gradient opacity-70"></div>
+      <div class="absolute top-20 -left-20 w-72 h-72 bg-primary-300/20 dark:bg-primary-700/15 rounded-full blur-3xl animate-blob"></div>
+      <div class="absolute top-40 right-0 w-96 h-96 bg-pink-300/15 dark:bg-pink-700/10 rounded-full blur-3xl animate-blob" style="animation-delay: 2s"></div>
+      <div class="absolute bottom-0 left-1/3 w-80 h-80 bg-violet-300/15 dark:bg-violet-700/10 rounded-full blur-3xl animate-blob" style="animation-delay: 4s"></div>
 
       <div class="relative max-w-7xl mx-auto px-4 sm:px-6 text-center">
         <!-- Badge -->
-        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary-50 dark:bg-primary-950/40 border border-primary-200 dark:border-primary-800 mb-6 animate-fade-in">
+        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-strong border border-white/30 dark:border-surface-700/50 mb-6 animate-fade-in">
           <Sparkles :size="14" class="text-primary-500" />
           <span class="text-xs font-medium text-primary-700 dark:text-primary-300">{{ t('landing.hero.badge') }}</span>
           <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
         </div>
 
         <!-- Title -->
-        <h1 class="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6 animate-slide-up">
+        <h1 class="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6 animate-slide-up drop-shadow-2xl">
           {{ t('landing.hero.title') }}
           <br />
           <span class="gradient-text-animated">{{ t('landing.hero.titleHighlight') }}</span>
@@ -167,17 +176,17 @@ const formatStat = (val: number, decimal?: boolean) => {
 
         <!-- CTAs -->
         <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mb-12 animate-slide-up" style="animation-delay: 0.2s">
-          <button @click="router.push('/register')" class="btn-primary text-base px-6 py-3 glow-primary">
+          <button @click="router.push('/register')" class="btn-glow text-base px-6 py-3">
             {{ t('landing.hero.ctaStart') }} <ArrowRight :size="20" />
           </button>
-          <button @click="router.push('/login')" class="btn-secondary text-base px-6 py-3">
+          <button @click="router.push('/login')" class="btn-glass text-base px-6 py-3">
             <Sparkles :size="18" /> {{ t('landing.hero.ctaDemo') }}
           </button>
         </div>
 
         <!-- Floating preview cards -->
         <div class="relative max-w-5xl mx-auto animate-scale-in" style="animation-delay: 0.3s">
-          <div class="card p-2 shadow-2xl glow-primary">
+          <div class="glass-card p-2 shadow-2xl">
             <div class="rounded-lg overflow-hidden bg-surface-50 dark:bg-surface-900">
               <!-- Mock dashboard -->
               <div class="grid grid-cols-4 gap-3 p-4">
@@ -230,7 +239,7 @@ const formatStat = (val: number, decimal?: boolean) => {
           </div>
 
           <!-- Floating badges around preview -->
-          <div class="absolute -top-4 -left-4 card p-3 shadow-xl animate-float hidden sm:block">
+          <div class="absolute -top-4 -left-4 glass-card p-3 shadow-xl animate-float hidden sm:block">
             <div class="flex items-center gap-2">
               <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
                 <Brain :size="16" class="text-white" />
@@ -242,7 +251,7 @@ const formatStat = (val: number, decimal?: boolean) => {
             </div>
           </div>
 
-          <div class="absolute -bottom-4 -right-4 card p-3 shadow-xl animate-float-delayed hidden sm:block">
+          <div class="absolute -bottom-4 -right-4 glass-card p-3 shadow-xl animate-float-delayed hidden sm:block">
             <div class="flex items-center gap-2">
               <div class="relative">
                 <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
@@ -261,7 +270,7 @@ const formatStat = (val: number, decimal?: boolean) => {
     </section>
 
     <!-- Stats -->
-    <section id="stats-section" class="py-16 border-y border-surface-200 dark:border-surface-800 bg-surface-50/50 dark:bg-surface-900/30">
+    <section id="stats-section" class="py-16 border-y border-white/20 dark:border-surface-800/50 glass-strong relative z-10" data-reveal>
       <div class="max-w-7xl mx-auto px-4 sm:px-6">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
           <div v-for="(s, i) in stats" :key="i" class="text-center">
@@ -275,9 +284,9 @@ const formatStat = (val: number, decimal?: boolean) => {
     </section>
 
     <!-- Features -->
-    <section id="features" class="py-24">
+    <section id="features" class="py-24 relative z-10" data-reveal>
       <div class="max-w-7xl mx-auto px-4 sm:px-6">
-        <div class="text-center mb-16">
+        <div class="text-center mb-16" data-reveal>
           <span class="text-sm font-bold text-primary-500 uppercase tracking-wider">{{ t('landing.nav.features') }}</span>
           <h2 class="text-4xl sm:text-5xl font-bold mt-2 mb-4" v-html="t('landing.features.title')"></h2>
           <p class="text-lg text-surface-500 dark:text-surface-400 max-w-2xl mx-auto">
@@ -289,7 +298,9 @@ const formatStat = (val: number, decimal?: boolean) => {
           <div
             v-for="(f, i) in features"
             :key="i"
-            class="group card p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+            :data-reveal="'scale'"
+            :data-reveal-delay="(i % 3) + 1"
+            class="group glass-card gradient-border shine-hover p-6 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:border-primary-300/50 dark:hover:border-primary-700/50"
           >
             <div class="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110" :class="f.bg">
               <component :is="f.icon" :size="24" class="text-surface-700 dark:text-surface-200" />
@@ -302,8 +313,8 @@ const formatStat = (val: number, decimal?: boolean) => {
     </section>
 
     <!-- AI Showcase -->
-    <section id="ai" class="py-24 bg-surface-50/50 dark:bg-surface-900/30 border-y border-surface-200 dark:border-surface-800 relative overflow-hidden">
-      <div class="absolute inset-0 dot-bg opacity-40"></div>
+    <section id="ai" class="py-24 glass-strong border-y border-white/20 dark:border-surface-800/50 relative overflow-hidden z-10" data-reveal>
+      <div class="absolute inset-0 dot-bg opacity-30"></div>
       <div class="relative max-w-7xl mx-auto px-4 sm:px-6">
         <div class="grid lg:grid-cols-2 gap-12 items-center">
           <div>
@@ -326,7 +337,7 @@ const formatStat = (val: number, decimal?: boolean) => {
           </div>
 
           <!-- AI Chat Mockup -->
-          <div class="card p-6 shadow-xl">
+          <div class="glass-card p-6 shadow-2xl">
             <div class="flex items-center gap-2 mb-4 pb-4 border-b border-surface-200 dark:border-surface-800">
               <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
                 <Brain :size="16" class="text-white" />
@@ -359,14 +370,14 @@ const formatStat = (val: number, decimal?: boolean) => {
     </section>
 
     <!-- Comparison Table -->
-    <section id="compare" class="py-24">
+    <section id="compare" class="py-24 relative z-10" data-reveal>
       <div class="max-w-5xl mx-auto px-4 sm:px-6">
         <div class="text-center mb-12">
           <span class="text-sm font-bold text-primary-500 uppercase tracking-wider">{{ t('landing.nav.compare') }}</span>
           <h2 class="text-4xl font-bold mt-2 mb-4">{{ t('landing.compare.title') }}</h2>
         </div>
 
-        <div class="card overflow-hidden">
+        <div class="glass-card overflow-hidden">
           <table class="w-full">
             <thead>
               <tr class="border-b border-surface-200 dark:border-surface-800">
@@ -408,7 +419,7 @@ const formatStat = (val: number, decimal?: boolean) => {
     </section>
 
     <!-- Testimonials -->
-    <section id="testimonials" class="py-24 bg-surface-50/50 dark:bg-surface-900/30 border-y border-surface-200 dark:border-surface-800">
+    <section id="testimonials" class="py-24 glass-strong border-y border-white/20 dark:border-surface-800/50 relative z-10" data-reveal>
       <div class="max-w-7xl mx-auto px-4 sm:px-6">
         <div class="text-center mb-12">
           <span class="text-sm font-bold text-primary-500 uppercase tracking-wider">{{ t('landing.nav.reviews') }}</span>
@@ -416,7 +427,7 @@ const formatStat = (val: number, decimal?: boolean) => {
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div v-for="(t, i) in testimonials" :key="i" class="card p-6">
+          <div v-for="(t, i) in testimonials" :key="i" :data-reveal="i % 2 === 0 ? 'left' : 'right'" :data-reveal-delay="1" class="glass-card gradient-border p-6 hover:shadow-xl transition-all shine-hover">
             <div class="flex items-center gap-1 mb-3">
               <Star v-for="s in t.stars" :key="s" :size="16" class="text-yellow-400 fill-yellow-400" />
             </div>
@@ -436,7 +447,7 @@ const formatStat = (val: number, decimal?: boolean) => {
     </section>
 
     <!-- FAQ -->
-    <section id="faq" class="py-24">
+    <section id="faq" class="py-24 relative z-10" data-reveal>
       <div class="max-w-3xl mx-auto px-4 sm:px-6">
         <div class="text-center mb-12">
           <span class="text-sm font-bold text-primary-500 uppercase tracking-wider">{{ t('landing.nav.faq') }}</span>
@@ -444,7 +455,7 @@ const formatStat = (val: number, decimal?: boolean) => {
         </div>
 
         <div class="space-y-3">
-          <div v-for="(f, i) in faqs" :key="i" class="card overflow-hidden">
+          <div v-for="(f, i) in faqs" :key="i" class="glass-card overflow-hidden hover:shadow-lg transition-all">
             <button
               @click="activeFaq = activeFaq === i ? null : i"
               class="w-full flex items-center justify-between p-4 text-left"
@@ -461,8 +472,8 @@ const formatStat = (val: number, decimal?: boolean) => {
     </section>
 
     <!-- CTA -->
-    <section class="py-24 relative overflow-hidden">
-      <div class="absolute inset-0 bg-gradient-to-br from-primary-600 via-purple-600 to-pink-600"></div>
+    <section class="py-24 relative overflow-hidden z-10" data-reveal="scale">
+      <div class="absolute inset-0 bg-gradient-to-br from-primary-600 via-accent-600 to-primary-500"></div>
       <div class="absolute inset-0 dot-bg opacity-20"></div>
       <div class="relative max-w-4xl mx-auto px-4 sm:px-6 text-center text-white">
         <h2 class="text-4xl sm:text-5xl font-bold mb-4">{{ t('landing.cta.title') }}</h2>
@@ -477,7 +488,7 @@ const formatStat = (val: number, decimal?: boolean) => {
     </section>
 
     <!-- Footer -->
-    <footer class="py-12 border-t border-surface-200 dark:border-surface-800">
+    <footer class="py-12 border-t border-white/20 dark:border-surface-800/50 glass-strong relative z-10">
       <div class="max-w-7xl mx-auto px-4 sm:px-6">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
           <div class="col-span-2">
@@ -495,6 +506,7 @@ const formatStat = (val: number, decimal?: boolean) => {
               <li><a href="#features" class="hover:text-primary-500">{{ t('landing.nav.features') }}</a></li>
               <li><a href="#ai" class="hover:text-primary-500">{{ t('landing.nav.ai') }}</a></li>
               <li><a href="#compare" class="hover:text-primary-500">{{ t('landing.nav.compare') }}</a></li>
+              <li><router-link to="/pricing" class="hover:text-primary-500">Pricing</router-link></li>
               <li><a href="#faq" class="hover:text-primary-500">{{ t('landing.nav.faq') }}</a></li>
             </ul>
           </div>

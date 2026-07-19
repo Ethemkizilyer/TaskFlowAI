@@ -102,6 +102,41 @@ const router = createRouter({
       meta: { requiresAuth: true, minRole: 'TEAM_LEADER' as Role },
     },
     {
+      path: '/pricing',
+      name: 'pricing',
+      component: () => import('@/views/PricingView.vue'),
+    },
+    {
+      path: '/calendar',
+      name: 'calendar',
+      component: () => import('@/views/CalendarView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/reports',
+      name: 'reports',
+      component: () => import('@/views/ReportsView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/directory',
+      name: 'directory',
+      component: () => import('@/views/TeamDirectoryView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: () => import('@/views/SettingsView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/time-tracking',
+      name: 'time-tracking',
+      component: () => import('@/views/TimeTrackingView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/:pathMatch(.*)*',
       redirect: '/landing',
     },

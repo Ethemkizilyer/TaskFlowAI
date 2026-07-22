@@ -9,6 +9,10 @@ export const authApi = {
   getMe: () => api.get('/auth/me'),
   updateProfile: (data: { name?: string; avatar?: string }) =>
     api.patch('/auth/me', data),
+  refresh: (refreshToken: string) =>
+    api.post<{ success: boolean; data: { accessToken: string; refreshToken: string } }>('/auth/refresh', { refreshToken }),
+  logout: (refreshToken: string) =>
+    api.post('/auth/logout', { refreshToken }),
 }
 
 export const boardApi = {

@@ -85,8 +85,8 @@ const deleteNotification = async (id: string) => {
   notifications.value = notifications.value.filter((n) => n.id !== id)
 }
 
-const logout = () => {
-  authStore.logout()
+const logout = async () => {
+  await authStore.logout()
   router.push('/login')
 }
 

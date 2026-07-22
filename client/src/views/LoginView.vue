@@ -48,16 +48,16 @@ const handleSubmit = async () => {
 
         <div class="max-w-md">
           <h1 class="text-4xl font-bold leading-tight mb-4">
-            Welcome back to the future of project management.
+            {{ t('login.welcomeTitle') }}
           </h1>
           <p class="text-white/70 text-lg mb-8">
-            Your AI-powered workspace is waiting. Pick up where you left off.
+            {{ t('login.welcomeSubtitle') }}
           </p>
           <div class="space-y-3">
             <div v-for="feat in [
-              { icon: Brain, text: 'AI suggests your next priorities' },
-              { icon: Users, text: 'See your team online in real-time' },
-              { icon: TrendingUp, text: 'Track progress with beautiful analytics' },
+              { icon: Brain, text: t('login.feat1') },
+              { icon: Users, text: t('login.feat2') },
+              { icon: TrendingUp, text: t('login.feat3') },
             ]" :key="feat.text" class="flex items-center gap-3">
               <div class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
                 <component :is="feat.icon" :size="16" />

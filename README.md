@@ -27,6 +27,16 @@ A modern, full-stack Kanban board application with AI integration (Google Gemini
 - **Comments** on tasks
 - **Activity feed** — track all board actions
 - **Command Palette** — quick search & navigation
+- **Online Games** — real-time multiplayer strategy games via Socket.io:
+  - Tic Tac Toe (XOX)
+  - Connect Four (Dört Taş)
+  - Chess (Satranç) — full rules: castling, en passant, promotion, check/checkmate/stalemate detection
+  - Matchmaking queue, rematch, resign, disconnect handling
+- **Team Directory** — browse team members with pagination, search, and role filtering
+- **Calendar** — visual task calendar with drag-and-drop scheduling
+- **Time Tracking** — detailed time logs with project/task breakdowns
+- **Reports** — burndown charts, velocity tracking, and analytics
+- **Gamification** — achievements, levels, and XP system
 - **i18n** — Turkish and English language support
 - **Dark mode** — beautiful dark theme by default
 - **Responsive** — works on desktop and mobile
@@ -182,6 +192,19 @@ After running the seed script (password for all: `123456`):
 - `task:typing` — Typing indicators
 - `cursor:move` — Live cursor tracking
 
+### Game Socket Events (`/games` namespace)
+- `game:matchmake` — Join matchmaking queue for a game type
+- `game:cancel_matchmake` — Leave matchmaking queue
+- `game:started` — Match found, game begins
+- `game:move` — Submit a move (TicTacToe index, Connect Four column, Chess from/to/promotion)
+- `game:get_legal_moves` — Request legal moves for a chess piece (server-side validation)
+- `game:legal_moves` — Server responds with legal move squares
+- `game:move_made` — Broadcast move to both players
+- `game:ended` — Game over (winner, draw, resign, or disconnect)
+- `game:rematch` — Request rematch
+- `game:resign` — Resign current game
+- `game:leave` — Leave game room
+
 ## Project Structure
 
 ```
@@ -203,8 +226,9 @@ taskflow-ai/
 │       ├── middleware/         # Auth, admin, error handling
 │       ├── controllers/        # Auth, Board, Task, User, Mood, Focus, Automation, Notification
 │       ├── routes/             # API routes
-│       ├── services/           # AI service (Gemini)
-│       └── sockets/            # Socket.io handler
+│       ├── services/           # AI service (Gemini), gamification, recurring tasks, custom fields
+│       ├── games/              # Chess engine (move validation, check/checkmate detection)
+│       └── sockets/            # Socket.io handler + game socket handler (/games namespace)
 └── client/
     ├── Dockerfile
     ├── nginx.conf
@@ -222,8 +246,8 @@ taskflow-ai/
         ├── stores/             # Pinia stores (auth, board, theme)
         ├── router/             # Vue Router
         ├── i18n/               # Turkish & English locales
-        ├── components/         # Navbar, NotificationBadge, LanguageSwitcher
-        └── views/              # Login, Register, Landing, Dashboard, Board, TeamPulse, Focus, Messages, Profile, Admin, Panels
+        ├── components/         # Navbar, NotificationBadge, LanguageSwitcher, game boards (TicTacToe, ConnectFour, Chess)
+        └── views/              # Login, Register, Landing, Dashboard, Board, TeamPulse, Focus, Messages, Profile, Admin, Calendar, Reports, TimeTracking, TeamDirectory, Games, Settings
 ```
 
 ## Getting a Free Gemini API Key
@@ -232,6 +256,26 @@ taskflow-ai/
 2. Sign in with your Google account
 3. Click "Create API Key"
 4. Copy the key and paste it in your `.env` file as `GEMINI_API_KEY`
+
+## Online Games
+
+Real-time multiplayer games available at `/games`:
+
+| Game | Description |
+|------|-------------|
+| Tic Tac Toe | Classic 3x3 grid, get three in a row |
+| Connect Four | 6x7 grid, connect four discs vertically/horizontally/diagonally |
+| Chess | Full chess with castling, en passant, promotion, check/checkmate/stalemate |
+
+**Features:**
+- Automatic matchmaking queue
+- Real-time move synchronization via Socket.io `/games` namespace
+- Server-side move validation and game state management
+- Rematch, resign, and disconnect handling
+- Legal move indicators (chess)
+- Check warnings (chess)
+- Pion promotion dialog (chess)
+- Board perspective rotation based on player color (chess)
 
 ## Role Hierarchy & Permissions
 

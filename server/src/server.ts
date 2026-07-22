@@ -2,10 +2,12 @@ import http from 'http';
 import { config } from './config';
 import app from './app';
 import { initSocketServer } from './sockets/socketHandler';
+import { initGameNamespaces } from './sockets/gameSocketHandler';
 
 const server = http.createServer(app);
 
 const io = initSocketServer(server);
+initGameNamespaces(io);
 
 server.listen(config.port, () => {
   console.log(`\n========================================`);

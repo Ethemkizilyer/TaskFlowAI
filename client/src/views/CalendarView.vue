@@ -244,7 +244,7 @@ const loadTasks = async () => {
     tasks.value = taskRes.data.data || []
     boards.value = boardRes.data.data || []
   } catch (e: any) {
-    error.value = e.response?.data?.error || 'Failed to load calendar tasks'
+    error.value = e.response?.data?.error || t('calendar.error')
   } finally {
     loading.value = false
   }

@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useBoardStore } from '@/stores/board'
-import { userApi, adminApi, dashboardApi } from '@/api'
+import { userApi, adminApi, dashboardApi, userSelectApi } from '@/api'
 import { Sparkles, Plus, Users, Clock, MoreVertical, Trash2, X, Activity, TrendingUp, LayoutDashboard, Shield, CheckCircle, Circle, AlertCircle, Flame } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import type { BoardListItem } from '@/types'
+import MultiSelect from '@/components/MultiSelect.vue'
+import type { SelectOption } from '@/components/MultiSelect.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -20,6 +22,10 @@ const memberEmailInput = ref('')
 const menuOpen = ref<string | null>(null)
 const recentActivity = ref<any[]>([])
 const dashStats = ref<any>(null)
+const userOptions = ref<SelectOption[]>([])
+const selectedUserIds = ref<string[]>([])
+const userSearchQuery = ref('')
+const usersLoading = ref(false)
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; icon: any }> = {
   TODO: { label: t('task.status.TODO'), color: 'text-surface-600', bg: 'bg-surface-400', icon: Circle },
@@ -114,6 +120,7 @@ const handleCreate = async () => {
     const board = await boardStore.createBoard(newBoard.value)
     showCreate.value = false
     newBoard.value = { title: '', description: '', color: '#6366f1', memberEmails: [] }
+    selectedUserIds.value = []
     memberEmailInput.value = ''
     router.push(`/board/${board.id}`)
   } catch (e: any) {
@@ -122,6 +129,36 @@ const handleCreate = async () => {
     creating.value = false
   }
 }
+
+const fetchUsers = async (search?: string) => {
+  usersLoading.value = true
+  try {
+    const res = await userSelectApi.getUsers(search, 50)
+    userOptions.value = res.data.data.map((u: any) => ({
+      value: u.email,
+      label: u.name,
+      sublabel: u.email,
+      avatar: u.avatar,
+    }))
+  } catch {
+    // ignore
+  } finally {
+    usersLoading.value = false
+  }
+}
+
+watch(userSearchQuery, (v) => fetchUsers(v))
+
+watch(selectedUserIds, (emails) => {
+  newBoard.value.memberEmails = emails
+})
+
+watch(showCreate, (v) => {
+  if (v) {
+    selectedUserIds.value = []
+    fetchUsers()
+  }
+})
 
 const addMemberEmail = () => {
   const email = memberEmailInput.value.trim()
@@ -250,10 +287,10 @@ const formatActivityTime = (date: string) => {
                   <circle
                     v-if="totalTasksFromStats > 0"
                     cx="50" cy="50" r="40" fill="none"
-                    :stroke="statusColors[key as string] || '#9ca3af'"
+                    :stroke="statusColors[String(key)] || '#9ca3af'"
                     :stroke-width="12"
                     :stroke-dasharray="`${(s / totalTasksFromStats) * 251.2} 251.2`"
-                    :stroke-dashoffset="getDashOffset(key as string)"
+                    :stroke-dashoffset="getDashOffset(String(key))"
                     class="transition-all duration-500"
                   />
                 </template>
@@ -303,7 +340,7 @@ const formatActivityTime = (date: string) => {
             <div v-for="(count, key) in dashStats.taskPriority" :key="key">
               <div class="flex items-center justify-between text-sm mb-1">
                 <div class="flex items-center gap-2">
-                  <Flame v-if="key === 'URGENT'" :size="14" class="text-red-500" />
+                  <Flame v-if="String(key) === 'URGENT'" :size="14" class="text-red-500" />
                   <span class="text-surface-600 dark:text-surface-300">{{ priorityConfig[key]?.label || key }}</span>
                 </div>
                 <span class="font-medium">{{ count }}</span>
@@ -479,30 +516,14 @@ const formatActivityTime = (date: string) => {
           </div>
           <div>
             <label class="block text-sm font-medium mb-1.5">{{ t('board.addMembers') }}</label>
-            <div class="flex gap-2">
-              <input
-                v-model="memberEmailInput"
-                type="email"
-                placeholder="user@example.com"
-                class="input flex-1"
-                @keyup.enter="addMemberEmail"
-              />
-              <button @click="addMemberEmail" :disabled="!memberEmailInput.trim()" class="btn-ghost px-3">
-                <Plus :size="18" />
-              </button>
-            </div>
-            <div v-if="newBoard.memberEmails.length" class="flex flex-wrap gap-2 mt-2">
-              <span
-                v-for="(email, i) in newBoard.memberEmails"
-                :key="i"
-                class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-surface-100 dark:bg-surface-800 text-xs"
-              >
-                {{ email }}
-                <button @click="newBoard.memberEmails.splice(i, 1)" class="text-surface-400 hover:text-red-500">
-                  <X :size="12" />
-                </button>
-              </span>
-            </div>
+            <MultiSelect
+              v-model="selectedUserIds"
+              :options="userOptions"
+              :loading="usersLoading"
+              :placeholder="t('board.addMember')"
+              :search-placeholder="t('common.search')"
+              @search="fetchUsers"
+            />
           </div>
           <button @click="handleCreate" :disabled="creating || !newBoard.title.trim()" class="btn-primary w-full">
             {{ creating ? t('common.loading') : t('dashboard.newBoard') }}

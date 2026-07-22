@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthenticatedRequest, ApiResponse } from '../types';
+import gamificationService from '../services/gamificationService';
 
 const startSessionSchema = z.object({
   taskId: z.string().optional(),
@@ -52,6 +53,15 @@ export const completeSession = async (
       where: { id },
       data: { completed: true, endedAt: new Date() },
     });
+
+    const totalMinutes = await prisma.focusSession.aggregate({
+      where: { userId: req.userId, completed: true },
+      _sum: { duration: true },
+    });
+
+    gamificationService
+      .onFocusSessionCompleted(req.userId!, totalMinutes._sum.duration || 0)
+      .catch(() => {});
 
     return res.json({ success: true, data: updated });
   } catch (error) {

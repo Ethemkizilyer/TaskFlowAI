@@ -230,3 +230,67 @@ export const getDailyBriefing = async (
     next(error);
   }
 };
+
+const chatSchema = z.object({
+  message: z.string().min(1),
+  history: z.array(z.object({
+    role: z.string(),
+    content: z.string(),
+  })).optional().default([]),
+});
+
+export const chatWithAI = async (
+  req: AuthenticatedRequest,
+  res: Response<ApiResponse>,
+  next: NextFunction
+) => {
+  try {
+    const { message, history } = chatSchema.parse(req.body);
+    const userId = req.userId!;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    });
+
+    const boards = await prisma.board.findMany({
+      where: {
+        OR: [
+          { ownerId: userId },
+          { members: { some: { userId } } },
+        ],
+        deletedAt: null,
+      },
+      select: { id: true, title: true },
+      take: 10,
+    });
+
+    const recentTasks = await prisma.task.findMany({
+      where: {
+        OR: [
+          { assigneeId: userId },
+          { board: { ownerId: userId } },
+        ],
+        deletedAt: null,
+      },
+      include: {
+        board: { select: { title: true } },
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 10,
+    });
+
+    const result = await aiService.chat(
+      message,
+      { userName: user?.name || 'User', boards, recentTasks },
+      history
+    );
+
+    return res.json({ success: true, data: result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: error.errors[0]?.message || 'Validation error' });
+    }
+    next(error);
+  }
+};

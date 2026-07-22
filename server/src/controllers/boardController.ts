@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthenticatedRequest, ApiResponse } from '../types';
 import { createNotification } from './notificationController';
+import gamificationService from '../services/gamificationService';
 
 const createBoardSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100),
@@ -110,7 +111,7 @@ export const createBoard = async (
         where: { email: { in: memberEmails }, deletedAt: null },
         select: { id: true, name: true, email: true },
       });
-      usersToAdd.push(...users);
+      usersToAdd.push(...users.filter((u) => u.id !== req.userId));
     }
 
     const board = await prisma.board.create({
@@ -150,6 +151,8 @@ export const createBoard = async (
         userId: req.userId!,
       },
     });
+
+    gamificationService.onBoardCreated(req.userId!).catch(() => {});
 
     await Promise.all(
       usersToAdd.map((u) =>

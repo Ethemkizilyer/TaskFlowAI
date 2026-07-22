@@ -1,12 +1,20 @@
 import { Server as SocketServer, Socket } from 'socket.io';
-import jwt from 'jsonwebtoken';
 import { config } from '../config';
 import prisma from '../config/prisma';
+import { verifyAccessToken } from '../services/tokenService';
 
 let io: SocketServer | null = null;
 
 const boardRooms = new Map<string, Set<string>>();
 const onlineUsers = new Map<string, Set<string>>();
+
+const userSelect = {
+  id: true,
+  name: true,
+  role: true,
+  status: true,
+  tokenVersion: true,
+};
 
 export function initSocketServer(server: any): SocketServer {
   io = new SocketServer(server, {
@@ -17,14 +25,21 @@ export function initSocketServer(server: any): SocketServer {
     },
   });
 
-  io.use((socket: Socket, next) => {
+  io.use(async (socket: Socket, next) => {
     const token = socket.handshake.auth?.token as string;
     if (!token) return next(new Error('Authentication required'));
     try {
-      const decoded = jwt.verify(token, config.jwtSecret) as { id: string; name: string; role: string };
-      (socket as any).userId = decoded.id;
-      (socket as any).userName = decoded.name;
-      (socket as any).userRole = decoded.role;
+      const payload = verifyAccessToken(token);
+      const user = await prisma.user.findUnique({
+        where: { id: payload.sub },
+        select: userSelect,
+      });
+      if (!user || user.status !== 'ACTIVE' || user.tokenVersion !== payload.v) {
+        throw new Error('Invalid token');
+      }
+      (socket as any).userId = user.id;
+      (socket as any).userName = user.name;
+      (socket as any).userRole = user.role;
       next();
     } catch {
       next(new Error('Invalid token'));

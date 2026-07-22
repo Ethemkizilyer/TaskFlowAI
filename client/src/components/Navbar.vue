@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Settings, LogOut, Bell, Users, Activity,
   ChevronDown, Shield, Check, Trash2, MessageSquare, Sun, Moon,
   Briefcase, Building2, UserCog, Search, Sparkles, Brain, Zap, Heart,
-  Calendar, BarChart3, Timer, UserCircle
+  Calendar, BarChart3, Timer, UserCircle, Trophy, Gamepad2
 } from 'lucide-vue-next'
 import { ROLE_LABELS, ROLE_COLORS } from '@/types'
 import LanguageSwitcher from './LanguageSwitcher.vue'
@@ -265,6 +265,12 @@ watch(() => props.notificationBadge, (newVal) => {
             </button>
             <button @click="navigate('/time-tracking')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
               <Timer :size="16" class="text-surface-400" /> {{ t('nav.timeTracking') }}
+            </button>
+            <button @click="navigate('/gamification')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
+              <Trophy :size="16" class="text-amber-400" /> {{ t('nav.gamification') }}
+            </button>
+            <button @click="navigate('/games')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
+              <Gamepad2 :size="16" class="text-violet-400" /> {{ t('nav.games') }}
             </button>
             <button @click="navigate('/directory')" class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
               <UserCircle :size="16" class="text-surface-400" /> {{ t('nav.directory') }}

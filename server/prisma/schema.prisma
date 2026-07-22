@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 enum Role {
@@ -143,9 +144,16 @@ model User {
   moodCheckins       MoodCheckin[]
   timeEntries        TimeEntry[]
   userSettings       UserSettings?
+  tokenVersion      Int            @default(1)
   deletedAt    DateTime?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+
+  refreshTokens     RefreshToken[]
+  achievements      UserAchievement[]
+  level             UserLevel?
+  recurringTasks    RecurringTask[]
+  auditLogs         AuditLog[]
 
   @@index([departmentId])
   @@index([teamId])
@@ -168,6 +176,8 @@ model Board {
   activity     Activity[]
   automations  Automation[]
   timeEntries  TimeEntry[]
+  recurringTasks RecurringTask[]
+  customFields  CustomField[]
   deletedAt    DateTime?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -231,6 +241,10 @@ model Task {
   deletedAt   DateTime?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+
+  blockingTasks   TaskDependency[] @relation("BlockingTasks")
+  blockedByTasks  TaskDependency[] @relation("BlockedByTasks")
+  customFieldValues CustomFieldValue[]
 
   @@index([boardId])
   @@index([columnId])
@@ -439,14 +453,21 @@ model TimeEntry {
   taskTitle   String
   boardId     String?
   board       Board?   @relation(fields: [boardId], references: [id], onDelete: SetNull)
-  duration    Int
+  duration    Int      @default(0)
   description String?
+  billable    Boolean  @default(true)
+  hourlyRate  Decimal? @db.Decimal(10, 2)
+  tags        String[] @default([])
   date        DateTime @default(now())
+  startedAt   DateTime?
+  endedAt     DateTime?
+  isRunning   Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([userId])
   @@index([userId, date])
+  @@index([userId, isRunning])
   @@index([boardId])
   @@map("time_entries")
 }
@@ -491,4 +512,173 @@ model UserSettings {
   updatedAt            DateTime @updatedAt
 
   @@map("user_settings")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  userAgent String?   @db.VarChar(255)
+  ip        String?   @db.VarChar(45)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
+}
+
+enum AchievementType {
+  FIRST_TASK
+  TASKS_10
+  TASKS_50
+  TASKS_100
+  STREAK_7
+  STREAK_30
+  POMODORO_MASTER
+  EARLY_BIRD
+  NIGHT_OWL
+  TEAM_PLAYER
+  SPEED_RUNNER
+  ORGANIZER
+  COMMUNICATOR
+  FOCUS_GURU
+  PERFECTIONIST
+}
+
+model Achievement {
+  id          String          @id @default(cuid())
+  type        AchievementType @unique
+  name        String
+  description String
+  icon        String
+  xpReward    Int
+  threshold   Int
+  createdAt   DateTime        @default(now())
+
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  unlockedAt    DateTime    @default(now())
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@index([achievementId])
+  @@map("user_achievements")
+}
+
+model UserLevel {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  xp           Int      @default(0)
+  level        Int      @default(1)
+  streak       Int      @default(0)
+  lastActiveAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("user_levels")
+}
+
+model TaskDependency {
+  id           String @id @default(cuid())
+  taskId       String
+  task         Task   @relation("BlockedByTasks", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOnId  String
+  dependsOn    Task   @relation("BlockingTasks", fields: [dependsOnId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@unique([taskId, dependsOnId])
+  @@index([taskId])
+  @@index([dependsOnId])
+  @@map("task_dependencies")
+}
+
+model RecurringTask {
+  id          String   @id @default(cuid())
+  boardId     String
+  board       Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  priority    String   @default("MEDIUM")
+  columnId    String?
+  assigneeId  String?
+  frequency   String
+  interval    Int      @default(1)
+  nextRunAt   DateTime
+  lastRunAt   DateTime?
+  isActive    Boolean  @default(true)
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([boardId])
+  @@index([nextRunAt])
+  @@index([isActive])
+  @@map("recurring_tasks")
+}
+
+model CustomField {
+  id          String   @id @default(cuid())
+  boardId     String
+  board       Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  name        String
+  type        String
+  options     String[]
+  required    Boolean  @default(false)
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  values      CustomFieldValue[]
+
+  @@index([boardId])
+  @@map("custom_fields")
+}
+
+model CustomFieldValue {
+  id          String   @id @default(cuid())
+  customFieldId String
+  customField   CustomField @relation(fields: [customFieldId], references: [id], onDelete: Cascade)
+  taskId       String
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  value        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([customFieldId, taskId])
+  @@index([taskId])
+  @@index([customFieldId])
+  @@map("custom_field_values")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action     String
+  entity     String
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

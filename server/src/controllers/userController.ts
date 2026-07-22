@@ -6,6 +6,7 @@ import fs from 'fs';
 import prisma from '../config/prisma';
 import { AuthenticatedRequest, ApiResponse } from '../types';
 import { sendCredentialsEmail } from '../services/emailService';
+import { invalidateUserSessions } from '../services/tokenService';
 
 const createUserSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -267,6 +268,10 @@ export const adminUpdateUser = async (
       },
     });
 
+    if (data.status !== undefined || data.role !== undefined) {
+      await invalidateUserSessions(req.params.id);
+    }
+
     return res.json({ success: true, data: updated, message: 'User updated successfully' });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -320,6 +325,8 @@ export const resetUserPassword = async (
       where: { id: req.params.id },
       data: { password: hashedPassword },
     });
+
+    await invalidateUserSessions(req.params.id);
 
     const emailSent = await sendCredentialsEmail(user.email, user.name, rawPassword);
 
@@ -445,6 +452,8 @@ export const banUser = async (
       select: { id: true, name: true, email: true, status: true },
     });
 
+    await invalidateUserSessions(req.params.id);
+
     return res.json({ success: true, data: updated, message: 'User banned' });
   } catch (error) {
     next(error);
@@ -486,6 +495,8 @@ export const updateUserRole = async (
       data: { role },
       select: { id: true, name: true, email: true, role: true },
     });
+
+    await invalidateUserSessions(req.params.id);
 
     return res.json({ success: true, data: updated, message: 'Role updated' });
   } catch (error) {
@@ -570,8 +581,13 @@ export const updateProfile = async (
   try {
     const data = updateUserSchema.parse(req.body);
 
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
+
     const updated = await prisma.user.update({
-      where: { id: req.userId },
+      where: { id: userId },
       data,
       select: { id: true, name: true, email: true, avatar: true, bio: true, role: true },
     });
@@ -590,7 +606,12 @@ export const changePassword = async (
   try {
     const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
 
-    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
@@ -603,9 +624,11 @@ export const changePassword = async (
 
     const hashed = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({
-      where: { id: req.userId },
+      where: { id: userId },
       data: { password: hashed },
     });
+
+    await invalidateUserSessions(req.userId!);
 
     return res.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
@@ -623,15 +646,59 @@ export const uploadAvatar = async (
       return res.status(400).json({ success: false, error: 'No file uploaded' });
     }
 
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
+
     const avatarUrl = `/uploads/avatars/${req.file.filename}`;
 
     const updated = await prisma.user.update({
-      where: { id: req.userId },
+      where: { id: userId },
       data: { avatar: avatarUrl },
       select: { id: true, name: true, email: true, avatar: true, bio: true, role: true },
     });
 
     return res.json({ success: true, data: updated, message: 'Avatar uploaded' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getUsersForSelect = async (
+  req: AuthenticatedRequest,
+  res: Response<ApiResponse>,
+  next: NextFunction
+) => {
+  try {
+    const search = req.query.search as string | undefined;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+
+    const where: any = {
+      status: 'ACTIVE',
+      deletedAt: null,
+    };
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const users = await prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        avatar: true,
+        role: true,
+      },
+      orderBy: { name: 'asc' },
+      take: limit,
+    });
+
+    return res.json({ success: true, data: users });
   } catch (error) {
     next(error);
   }

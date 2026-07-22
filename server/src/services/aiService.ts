@@ -267,6 +267,59 @@ Keep it concise, motivating, and actionable. Maximum 3 priorities, 3 risks, 3 re
       focusTip: 'Start with your most important task before checking emails or messages.',
     };
   }
+
+  async chat(
+    message: string,
+    context: { userName: string; boards: any[]; recentTasks: any[] },
+    history: { role: string; content: string }[] = []
+  ): Promise<{ reply: string; action?: { type: string; data: any } }> {
+    try {
+      const systemPrompt = `You are TaskFlow AI, a helpful assistant for a task management app.
+The user's name is ${context.userName}.
+
+Current boards: ${context.boards.map((b) => `"${b.title}" (${b.id})`).join(', ') || 'None'}
+
+Recent tasks:
+${context.recentTasks.map((t) => `- [${t.status}] ${t.title} (priority: ${t.priority}, board: ${t.board?.title || 'unknown'})`).join('\n') || 'No recent tasks'}
+
+You can help users:
+- Create tasks (respond with JSON action: {"type":"create_task","data":{"title":"...","priority":"MEDIUM"}})
+- List tasks (respond with JSON action: {"type":"list_tasks","data":{"filter":"all|overdue|today"}})
+- Summarize progress
+- Give productivity advice
+- Answer questions about their tasks
+
+If the user wants to perform an action, include an "action" field in your JSON response.
+Always respond in this JSON format:
+{"reply": "your text response", "action": null or action object}
+
+Be concise and friendly. Use the user's language (if they speak Turkish, respond in Turkish).`;
+
+      const conversationHistory = history
+        .slice(-10)
+        .map((h) => `${h.role}: ${h.content}`)
+        .join('\n');
+
+      const prompt = `${systemPrompt}
+
+Conversation history:
+${conversationHistory || 'None'}
+
+User: ${message}
+
+Respond ONLY in valid JSON:`;
+
+      const text = await this.generate(prompt);
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      return { reply: text || 'I could not process that request.' };
+    } catch (error) {
+      console.error('AI chat error:', error);
+      return { reply: 'Sorry, I could not process that right now. Please try again.' };
+    }
+  }
 }
 
 export default new AIService();

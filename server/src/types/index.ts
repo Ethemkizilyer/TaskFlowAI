@@ -1,14 +1,22 @@
 import { Request } from 'express';
 
+export interface RequestUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  status: string;
+  tokenVersion: number;
+  avatar: string | null;
+  bio: string | null;
+  departmentId: string | null;
+  teamId: string | null;
+}
+
 export interface AuthenticatedRequest extends Request {
   userId?: string;
   userRole?: string;
-  user?: {
-    id: string;
-    email: string;
-    name: string;
-    role: string;
-  };
+  user?: RequestUser;
 }
 
 export interface ApiResponse<T = any> {
@@ -25,6 +33,12 @@ export interface ApiResponse<T = any> {
     total?: number;
     totalPages?: number;
     unreadCount?: number;
+  };
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
   };
 }
 

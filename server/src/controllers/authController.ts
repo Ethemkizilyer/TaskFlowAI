@@ -1,11 +1,15 @@
 import { Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { config } from '../config';
 import { AuthenticatedRequest, ApiResponse } from '../types';
 import { ROLE_PERMISSIONS, Role } from '../config/permissions';
+import {
+  issueTokenPair,
+  rotateRefreshToken,
+  revokeRefreshToken,
+} from '../services/tokenService';
 
 const registerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -18,12 +22,36 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
-const generateToken = (userId: string, email: string, name: string, role: string) => {
-  const permissions = ROLE_PERMISSIONS[role as Role] || [];
-  return jwt.sign({ id: userId, email, name, role, permissions }, config.jwtSecret, {
-    expiresIn: config.jwtExpiresIn as string,
-  });
+const refreshSchema = z.object({
+  refreshToken: z.string().min(1, 'Refresh token is required'),
+});
+
+const logoutSchema = z.object({
+  refreshToken: z.string().min(1, 'Refresh token is required'),
+});
+
+const buildAuthResponse = (user: any, tokens: { accessToken: string; refreshToken: string } | null) => {
+  const permissions = ROLE_PERMISSIONS[user.role as Role] || [];
+  return {
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      role: user.role,
+      status: user.status,
+      departmentId: user.departmentId,
+      teamId: user.teamId,
+      permissions,
+    },
+    ...(tokens && { token: tokens.accessToken, refreshToken: tokens.refreshToken }),
+  };
 };
+
+const tokenMeta = (req: AuthenticatedRequest) => ({
+  userAgent: req.headers['user-agent'],
+  ip: req.ip || undefined,
+});
 
 export const register = async (
   req: AuthenticatedRequest,
@@ -52,16 +80,20 @@ export const register = async (
       },
       select: {
         id: true, name: true, email: true, avatar: true, role: true, status: true,
-        departmentId: true, teamId: true,
+        tokenVersion: true, departmentId: true, teamId: true,
       },
     });
 
-    const token = generateToken(user.id, user.email, user.name, user.role);
+    const tokens = user.status === 'ACTIVE'
+      ? await issueTokenPair(user.id, user.tokenVersion, tokenMeta(req))
+      : null;
 
     return res.status(201).json({
       success: true,
-      data: { user, token },
-      message: 'Account created successfully',
+      data: buildAuthResponse(user, tokens),
+      message: isFirstUser
+        ? 'Account created successfully'
+        : 'Account created successfully. Await admin approval.',
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -104,27 +136,53 @@ export const login = async (
       data: { lastLoginAt: new Date() },
     });
 
-    const token = generateToken(user.id, user.email, user.name, user.role);
-    const permissions = ROLE_PERMISSIONS[user.role as Role] || [];
+    const tokens = await issueTokenPair(user.id, user.tokenVersion, tokenMeta(req));
 
     return res.json({
       success: true,
-      data: {
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          avatar: user.avatar,
-          role: user.role,
-          status: user.status,
-          departmentId: user.departmentId,
-          teamId: user.teamId,
-          permissions,
-        },
-        token,
-      },
+      data: buildAuthResponse(user, tokens),
       message: 'Login successful',
     });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: error.errors[0]?.message || 'Validation error',
+      });
+    }
+    next(error);
+  }
+};
+
+export const refresh = async (
+  req: AuthenticatedRequest,
+  res: Response<ApiResponse>,
+  next: NextFunction
+) => {
+  try {
+    const { refreshToken } = refreshSchema.parse(req.body);
+    const tokens = await rotateRefreshToken(refreshToken, tokenMeta(req));
+    return res.json({ success: true, data: tokens });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: error.errors[0]?.message || 'Validation error',
+      });
+    }
+    return res.status(401).json({ success: false, error: 'Invalid or expired refresh token' });
+  }
+};
+
+export const logout = async (
+  req: AuthenticatedRequest,
+  res: Response<ApiResponse>,
+  next: NextFunction
+) => {
+  try {
+    const { refreshToken } = logoutSchema.parse(req.body);
+    await revokeRefreshToken(refreshToken);
+    return res.json({ success: true, message: 'Logged out successfully' });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({
@@ -142,8 +200,13 @@ export const getMe = async (
   next: NextFunction
 ) => {
   try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
+
     const user = await prisma.user.findUnique({
-      where: { id: req.userId },
+      where: { id: userId },
       select: {
         id: true, name: true, email: true, avatar: true, bio: true,
         role: true, status: true, createdAt: true,
@@ -178,8 +241,13 @@ export const updateProfile = async (
 
     const { name, avatar } = updateSchema.parse(req.body);
 
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
+
     const user = await prisma.user.update({
-      where: { id: req.userId },
+      where: { id: userId },
       data: { ...(name && { name }), ...(avatar && { avatar }) },
       select: { id: true, name: true, email: true, avatar: true, role: true },
     });

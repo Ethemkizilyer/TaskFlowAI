@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { userApi } from '@/api'
+import { useI18n } from 'vue-i18n'
 import {
   Activity, Loader2, Plus, Edit, Trash2, Move, MessageSquare,
   UserPlus, Bot, CheckCircle, Clock
 } from 'lucide-vue-next'
+
+const { t, locale } = useI18n()
 
 const loading = ref(true)
 const activities = ref<any[]>([])
@@ -41,11 +44,11 @@ const formatTime = (date: string) => {
   const mins = Math.floor(diff / 60000)
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  if (hours < 24) return `${hours}h ago`
-  if (days < 7) return `${days}d ago`
-  return d.toLocaleDateString()
+  if (mins < 1) return t('activity.justNow')
+  if (mins < 60) return t('activity.minutesAgo', { count: mins })
+  if (hours < 24) return t('activity.hoursAgo', { count: hours })
+  if (days < 7) return t('activity.daysAgo', { count: days })
+  return d.toLocaleDateString(locale.value)
 }
 
 const fetchActivity = async () => {
@@ -83,8 +86,8 @@ onMounted(() => {
           <Activity :size="20" class="text-primary-600" />
         </div>
         <div>
-          <h1 class="text-xl font-bold">Activity Feed</h1>
-          <p class="text-sm text-surface-500">Recent activities across all your boards</p>
+          <h1 class="text-xl font-bold">{{ t('activity.feedTitle') }}</h1>
+          <p class="text-sm text-surface-500">{{ t('activity.feedSubtitle') }}</p>
         </div>
       </div>
 
@@ -96,7 +99,7 @@ onMounted(() => {
       <!-- Empty -->
       <div v-else-if="activities.length === 0" class="card p-12 text-center">
         <Clock :size="48" class="mx-auto text-surface-300 dark:text-surface-600 mb-3" />
-        <p class="text-surface-500">No activity yet. Start by creating a board!</p>
+        <p class="text-surface-500">{{ t('activity.noActivity') }}. {{ t('activity.noActivityHint') }}</p>
       </div>
 
       <!-- Activity timeline -->
@@ -121,7 +124,7 @@ onMounted(() => {
                 :alt="item.user.name"
                 class="w-5 h-5 rounded-full bg-surface-200"
               />
-              <span class="text-sm font-medium">{{ item.user?.name || 'Unknown' }}</span>
+              <span class="text-sm font-medium">{{ item.user?.name || t('common.unknown') }}</span>
             </div>
             <p class="text-sm text-surface-600 dark:text-surface-300 mt-1">{{ item.description }}</p>
             <div class="flex items-center gap-3 mt-2">
@@ -139,7 +142,7 @@ onMounted(() => {
         <!-- Load more -->
         <div v-if="page < totalPages" class="text-center pt-4">
           <button @click="loadMore" class="btn-secondary">
-            Load More ({{ total - activities.length }} remaining)
+            {{ t('activity.loadMore', { remaining: total - activities.length }) }}
           </button>
         </div>
       </div>

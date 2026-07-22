@@ -10,11 +10,19 @@ if (jwtSecret === 'fallback-secret-change-me' && process.env.NODE_ENV === 'produ
   process.exit(1);
 }
 
+const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET || 'fallback-refresh-secret-change-me';
+if (jwtRefreshSecret === 'fallback-refresh-secret-change-me' && process.env.NODE_ENV === 'production') {
+  console.error('[FATAL] JWT_REFRESH_SECRET must be set in production. Using fallback is insecure.');
+  process.exit(1);
+}
+
 export const config = {
   port: parseInt(process.env.PORT || '3000', 10),
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
   jwtSecret,
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
+  jwtRefreshSecret,
+  jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   geminiApiKey: process.env.GEMINI_API_KEY || '',
   redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
   isProduction: process.env.NODE_ENV === 'production',

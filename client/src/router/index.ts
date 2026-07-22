@@ -137,6 +137,18 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/gamification',
+      name: 'gamification',
+      component: () => import('@/views/GamificationView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/games',
+      name: 'games',
+      component: () => import('@/views/GamesView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/:pathMatch(.*)*',
       redirect: '/landing',
     },

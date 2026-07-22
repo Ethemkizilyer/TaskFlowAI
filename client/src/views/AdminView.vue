@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { adminApi } from '@/api'
 import { useMessageStore } from '@/stores/message'
 import { useAuthStore } from '@/stores/auth'
+import { useI18n } from 'vue-i18n'
 import {
   Shield, Users, CheckCircle, Ban, Search, Loader2, UserCheck,
   UserX, Crown, Activity as ActivityIcon, LayoutDashboard, TrendingUp, UserPlus, X,
-  Edit, Trash2, KeyRound, Eye, ChevronLeft, MoreVertical
+  Edit, Trash2, KeyRound, Eye, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreVertical
 } from 'lucide-vue-next'
 
+const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const messageStore = useMessageStore()
 
@@ -19,9 +21,12 @@ const pendingUsers = ref<any[]>([])
 const searchQuery = ref('')
 const statusFilter = ref('')
 const page = ref(1)
+const pageSize = ref(10)
 const totalPages = ref(1)
 const total = ref(0)
 const activeTab = ref<'overview' | 'users' | 'pending'>('overview')
+
+const pageSizeOptions = [10, 20, 50, 100]
 
 // Create modal
 const showCreateModal = ref(false)
@@ -82,7 +87,7 @@ const fetchStats = async () => {
 const fetchUsers = async () => {
   loading.value = true
   try {
-    const res = await adminApi.getUsers(page.value, 20, statusFilter.value, searchQuery.value)
+    const res = await adminApi.getUsers(page.value, pageSize.value, statusFilter.value, searchQuery.value)
     users.value = res.data.data
     totalPages.value = res.data.meta?.totalPages || 1
     total.value = res.data.meta?.total || 0
@@ -114,7 +119,7 @@ const approveUser = async (id: string) => {
 }
 
 const banUser = async (id: string) => {
-  if (!confirm('Bu kullanıcıyı banlamak istediğinize emin misiniz? Erişimi anında kesilecek.')) return
+  if (!confirm(t('admin.confirmBan'))) return
   try {
     await adminApi.banUser(id)
     users.value = users.value.map((u) => u.id === id ? { ...u, status: 'BANNED' } : u)
@@ -124,6 +129,7 @@ const banUser = async (id: string) => {
 }
 
 const unbanUser = async (id: string) => {
+  if (!confirm(t('admin.confirmUnban'))) return
   try {
     await adminApi.unbanUser(id)
     users.value = users.value.map((u) => u.id === id ? { ...u, status: 'ACTIVE' } : u)
@@ -145,13 +151,13 @@ const handleCreateUser = async () => {
   createError.value = ''
   createSuccess.value = ''
   if (!createForm.value.name.trim() || !createForm.value.email.trim()) {
-    createError.value = 'İsim ve e-posta zorunludur'
+    createError.value = t('admin.nameRequired')
     return
   }
   creating.value = true
   try {
     const res = await adminApi.createUser(createForm.value)
-    createSuccess.value = res.data.message || 'Kullanıcı oluşturuldu'
+    createSuccess.value = res.data.message || t('admin.userCreated')
     users.value.unshift(res.data.data)
     if (stats.value) stats.value.users.total++
     setTimeout(() => {
@@ -160,7 +166,7 @@ const handleCreateUser = async () => {
       createSuccess.value = ''
     }, 2000)
   } catch (err: any) {
-    createError.value = err.response?.data?.error || 'Kullanıcı oluşturulamadı'
+    createError.value = err.response?.data?.error || t('admin.createFailed')
   } finally {
     creating.value = false
   }
@@ -184,7 +190,7 @@ const handleEditUser = async () => {
   editError.value = ''
   editSuccess.value = ''
   if (!editForm.value.name.trim() || !editForm.value.email.trim()) {
-    editError.value = 'İsim ve e-posta zorunludur'
+    editError.value = t('admin.nameRequired')
     return
   }
   editing.value = true
@@ -196,7 +202,7 @@ const handleEditUser = async () => {
       status: editForm.value.status,
       bio: editForm.value.bio,
     })
-    editSuccess.value = res.data.message || 'Kullanıcı güncellendi'
+    editSuccess.value = res.data.message || t('admin.userUpdated')
     users.value = users.value.map((u) =>
       u.id === editForm.value.id ? { ...u, ...res.data.data } : u
     )
@@ -205,32 +211,32 @@ const handleEditUser = async () => {
       editSuccess.value = ''
     }, 1500)
   } catch (err: any) {
-    editError.value = err.response?.data?.error || 'Güncelleme başarısız'
+    editError.value = err.response?.data?.error || t('admin.updateFailed')
   } finally {
     editing.value = false
   }
 }
 
 const handleDeleteUser = async (id: string, name: string) => {
-  if (!confirm(`"${name}" kullanıcısını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`)) return
+  if (!confirm(t('admin.confirmDeleteUser', { name }))) return
   try {
     await adminApi.deleteUser(id)
     users.value = users.value.filter((u) => u.id !== id)
     selectedIds.value.delete(id)
     if (stats.value) stats.value.users.total = Math.max(0, stats.value.users.total - 1)
   } catch (err: any) {
- alert(err.response?.data?.error || 'Silme işlemi başarısız')
+    alert(err.response?.data?.error || t('admin.deleteFailed'))
   }
 }
 
 const handleResetPassword = async (id: string, name: string) => {
-  if (!confirm(`"${name}" kullanıcısının şifresini sıfırlamak istediğinize emin misiniz? Yeni şifre e-posta ile gönderilecek.`)) return
+  if (!confirm(t('admin.confirmResetPassword', { name }))) return
   resettingPassword.value = id
   try {
     const res = await adminApi.resetPassword(id)
-    alert(res.data.message || 'Şifre sıfırlandı')
+    alert(res.data.message || t('admin.passwordResetSuccess'))
   } catch (err: any) {
-    alert(err.response?.data?.error || 'Şifre sıfırlama başarısız')
+    alert(err.response?.data?.error || t('admin.passwordResetFailed'))
   } finally {
     resettingPassword.value = null
   }
@@ -274,10 +280,9 @@ const toggleSelectAll = () => {
 const handleBulkAction = async (action: string, role?: string) => {
   const ids = Array.from(selectedIds.value)
   if (ids.length === 0) return
-  const actionText: Record<string, string> = {
-    ban: 'banla', unban: 'banı kaldır', approve: 'onayla', delete: 'sil', setRole: 'rol ata'
-  }
-  if (!confirm(`Seçili ${ids.length} kullanıcıyı ${actionText[action]}mak istediğinize emin misiniz?`)) return
+  const actionKey = action === 'setRole' ? 'setRole' : action
+  const actionText = t(`admin.bulkActions.${actionKey}`)
+  if (!confirm(t('admin.confirmBulkAction', { count: ids.length, action: actionText }))) return
   bulkActionLoading.value = true
   try {
     await adminApi.bulkAction({ userIds: ids, action, role })
@@ -286,7 +291,7 @@ const handleBulkAction = async (action: string, role?: string) => {
     await fetchUsers()
     await fetchStats()
   } catch (err: any) {
-    alert(err.response?.data?.error || 'Toplu işlem başarısız')
+    alert(err.response?.data?.error || t('admin.bulkActionFailed'))
   } finally {
     bulkActionLoading.value = false
   }
@@ -308,8 +313,16 @@ const statusColors: Record<string, string> = {
   BANNED: 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
 }
 
-const formatDate = (date: string) => new Date(date).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })
-const formatDateTime = (date: string) => new Date(date).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+const formatDate = (date: string) => new Date(date).toLocaleDateString(locale.value, { month: 'short', day: 'numeric', year: 'numeric' })
+const formatDateTime = (date: string) => new Date(date).toLocaleString(locale.value, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+
+const startItem = computed(() => (page.value - 1) * pageSize.value + 1)
+const endItem = computed(() => Math.min(page.value * pageSize.value, total.value))
+
+const onPageSizeChange = () => {
+  page.value = 1
+  fetchUsers()
+}
 
 onMounted(() => {
   fetchStats()
@@ -328,12 +341,12 @@ onMounted(() => {
             <Shield :size="20" class="text-primary-600" />
           </div>
           <div>
-            <h1 class="text-xl font-bold">Admin Panel</h1>
-            <p class="text-sm text-surface-500">Manage users, approvals, and platform stats</p>
+            <h1 class="text-xl font-bold">{{ t('admin.title') }}</h1>
+            <p class="text-sm text-surface-500">{{ t('admin.subtitle') }}</p>
           </div>
         </div>
         <button @click="showCreateModal = true" class="btn-primary text-sm flex items-center gap-2">
-          <UserPlus :size="16" /> Yeni Kullanıcı
+          <UserPlus :size="16" /> {{ t('admin.newButton') }}
         </button>
       </div>
 
@@ -344,14 +357,14 @@ onMounted(() => {
           class="px-4 py-2 text-sm font-medium rounded-md transition-colors"
           :class="activeTab === 'overview' ? 'bg-white dark:bg-surface-800 shadow-sm' : 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'"
         >
-          Overview
+          {{ t('admin.overview') }}
         </button>
         <button
           @click="activeTab = 'pending'"
           class="px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-2"
           :class="activeTab === 'pending' ? 'bg-white dark:bg-surface-800 shadow-sm' : 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'"
         >
-          Pending
+          {{ t('admin.pending') }}
           <span v-if="pendingUsers.length > 0" class="w-5 h-5 bg-yellow-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
             {{ pendingUsers.length }}
           </span>
@@ -361,7 +374,7 @@ onMounted(() => {
           class="px-4 py-2 text-sm font-medium rounded-md transition-colors"
           :class="activeTab === 'users' ? 'bg-white dark:bg-surface-800 shadow-sm' : 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'"
         >
-          All Users
+          {{ t('admin.allUsers') }}
         </button>
       </div>
 
@@ -374,53 +387,53 @@ onMounted(() => {
               <Users :size="18" class="text-primary-500" />
               <span class="text-2xl font-bold">{{ stats?.users?.total || 0 }}</span>
             </div>
-            <p class="text-xs text-surface-500">Total Users</p>
+            <p class="text-xs text-surface-500">{{ t('admin.totalUsers') }}</p>
           </div>
           <div class="card p-4">
             <div class="flex items-center justify-between mb-2">
               <LayoutDashboard :size="18" class="text-blue-500" />
               <span class="text-2xl font-bold">{{ stats?.boards || 0 }}</span>
             </div>
-            <p class="text-xs text-surface-500">Total Boards</p>
+            <p class="text-xs text-surface-500">{{ t('admin.totalBoards') }}</p>
           </div>
           <div class="card p-4">
             <div class="flex items-center justify-between mb-2">
               <TrendingUp :size="18" class="text-green-500" />
               <span class="text-2xl font-bold">{{ stats?.tasks || 0 }}</span>
             </div>
-            <p class="text-xs text-surface-500">Total Tasks</p>
+            <p class="text-xs text-surface-500">{{ t('admin.totalTasks') }}</p>
           </div>
           <div class="card p-4">
             <div class="flex items-center justify-between mb-2">
               <ActivityIcon :size="18" class="text-orange-500" />
               <span class="text-2xl font-bold">{{ stats?.comments || 0 }}</span>
             </div>
-            <p class="text-xs text-surface-500">Comments</p>
+            <p class="text-xs text-surface-500">{{ t('admin.totalComments') }}</p>
           </div>
         </div>
 
         <!-- User status breakdown -->
         <div class="card p-4">
-          <h3 class="font-semibold text-sm mb-3">User Status Breakdown</h3>
+          <h3 class="font-semibold text-sm mb-3">{{ t('admin.userStatusBreakdown') }}</h3>
           <div class="grid grid-cols-3 gap-3">
             <div class="text-center p-3 rounded-lg bg-green-50 dark:bg-green-950/20">
               <p class="text-2xl font-bold text-green-600">{{ stats?.users?.active || 0 }}</p>
-              <p class="text-xs text-surface-500 mt-1">Active</p>
+              <p class="text-xs text-surface-500 mt-1">{{ t('admin.active') }}</p>
             </div>
             <div class="text-center p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950/20">
               <p class="text-2xl font-bold text-yellow-600">{{ stats?.users?.pending || 0 }}</p>
-              <p class="text-xs text-surface-500 mt-1">Pending</p>
+              <p class="text-xs text-surface-500 mt-1">{{ t('admin.pending') }}</p>
             </div>
             <div class="text-center p-3 rounded-lg bg-red-50 dark:bg-red-950/20">
               <p class="text-2xl font-bold text-red-600">{{ stats?.users?.banned || 0 }}</p>
-              <p class="text-xs text-surface-500 mt-1">Banned</p>
+              <p class="text-xs text-surface-500 mt-1">{{ t('admin.banned') }}</p>
             </div>
           </div>
         </div>
 
         <!-- Recent users -->
         <div class="card p-4">
-          <h3 class="font-semibold text-sm mb-3">Recent Users</h3>
+          <h3 class="font-semibold text-sm mb-3">{{ t('admin.recentUsers') }}</h3>
           <div class="space-y-2">
             <div v-for="user in stats?.recentUsers || []" :key="user.id" class="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-50 dark:hover:bg-surface-800/30">
               <img :src="user.avatar || ''" :alt="user.name" class="w-8 h-8 rounded-full bg-surface-200" />
@@ -436,7 +449,7 @@ onMounted(() => {
 
         <!-- Recent boards -->
         <div class="card p-4">
-          <h3 class="font-semibold text-sm mb-3">Recent Boards</h3>
+          <h3 class="font-semibold text-sm mb-3">{{ t('admin.recentBoards') }}</h3>
           <div class="space-y-2">
             <div v-for="board in stats?.recentBoards || []" :key="board.id" class="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-50 dark:hover:bg-surface-800/30">
               <div class="w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-950/40 flex items-center justify-center">
@@ -444,7 +457,7 @@ onMounted(() => {
               </div>
               <div class="flex-1 min-w-0">
                 <p class="text-sm font-medium truncate">{{ board.title }}</p>
-                <p class="text-xs text-surface-500">by {{ board.owner.name }}</p>
+                <p class="text-xs text-surface-500">{{ board.owner.name }}</p>
               </div>
               <span class="text-xs text-surface-400">{{ formatDate(board.createdAt) }}</span>
             </div>
@@ -456,17 +469,17 @@ onMounted(() => {
       <div v-if="activeTab === 'pending'" class="space-y-3">
         <div v-if="pendingUsers.length === 0" class="card p-12 text-center">
           <CheckCircle :size="48" class="mx-auto text-green-500 mb-3" />
-          <p class="text-surface-500">No pending users. Everyone is approved!</p>
+          <p class="text-surface-500">{{ t('admin.noPendingUsers') }}</p>
         </div>
         <div v-for="user in pendingUsers" :key="user.id" class="card p-4 flex items-center gap-4">
           <img :src="user.avatar || ''" :alt="user.name" class="w-12 h-12 rounded-full bg-surface-200" />
           <div class="flex-1 min-w-0">
             <p class="font-medium">{{ user.name }}</p>
             <p class="text-sm text-surface-500">{{ user.email }}</p>
-            <p class="text-xs text-surface-400 mt-1">Registered {{ formatDate(user.createdAt) }}</p>
+            <p class="text-xs text-surface-400 mt-1">{{ t('admin.joined') }} {{ formatDate(user.createdAt) }}</p>
           </div>
           <button @click="approveUser(user.id)" class="btn-primary text-sm">
-            <UserCheck :size="16" /> Approve
+            <UserCheck :size="16" /> {{ t('admin.approve') }}
           </button>
         </div>
       </div>
@@ -481,19 +494,19 @@ onMounted(() => {
               v-model="searchQuery"
               @input="onSearch"
               type="text"
-              placeholder="Search by name or email..."
+              :placeholder="t('admin.searchPlaceholder')"
               class="input pl-10"
             />
           </div>
           <select v-model="statusFilter" @change="onFilterChange" class="input sm:w-40">
-            <option value="">All Status</option>
-            <option value="ACTIVE">Active</option>
-            <option value="PENDING">Pending</option>
-            <option value="BANNED">Banned</option>
+            <option value="">{{ t('admin.allStatus') }}</option>
+            <option value="ACTIVE">{{ t('admin.active') }}</option>
+            <option value="PENDING">{{ t('admin.pending') }}</option>
+            <option value="BANNED">{{ t('admin.banned') }}</option>
           </select>
         </div>
 
-        <p class="text-sm text-surface-500">{{ total }} users found</p>
+        <p class="text-sm text-surface-500">{{ t('admin.usersFound', { count: total }) }}</p>
 
         <!-- Users table -->
         <div v-if="loading" class="flex justify-center py-12">
@@ -501,22 +514,22 @@ onMounted(() => {
         </div>
 
         <div v-else-if="users.length === 0" class="card p-12 text-center text-surface-500">
-          No users found
+          {{ t('admin.noUsersFound') }}
         </div>
 
         <!-- Bulk action bar -->
         <div v-if="showBulkBar" class="flex items-center gap-3 p-3 rounded-lg bg-primary-50 dark:bg-primary-950/20 border border-primary-200 dark:border-primary-800">
-          <span class="text-sm font-medium">{{ selectedIds.size }} selected</span>
+          <span class="text-sm font-medium">{{ t('admin.selected', { count: selectedIds.size }) }}</span>
           <div class="flex-1" />
-          <button @click="handleBulkAction('approve')" class="btn-ghost text-xs px-2 py-1 text-green-600">Approve All</button>
-          <button @click="handleBulkAction('ban')" class="btn-ghost text-xs px-2 py-1 text-red-600">Ban All</button>
-          <button @click="handleBulkAction('unban')" class="btn-ghost text-xs px-2 py-1 text-green-600">Unban All</button>
+          <button @click="handleBulkAction('approve')" class="btn-ghost text-xs px-2 py-1 text-green-600">{{ t('admin.approveAll') }}</button>
+          <button @click="handleBulkAction('ban')" class="btn-ghost text-xs px-2 py-1 text-red-600">{{ t('admin.banAll') }}</button>
+          <button @click="handleBulkAction('unban')" class="btn-ghost text-xs px-2 py-1 text-green-600">{{ t('admin.unbanAll') }}</button>
           <select @change="handleBulkAction('setRole', ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''" class="text-xs bg-surface-100 dark:bg-surface-800 rounded-md px-2 py-1 border-0">
-            <option value="">Set Role...</option>
+            <option value="">{{ t('admin.setRole') }}</option>
             <option v-for="r in roleOptions" :key="r.value" :value="r.value">{{ r.label }}</option>
           </select>
-          <button @click="handleBulkAction('delete')" class="btn-ghost text-xs px-2 py-1 text-red-600">Delete All</button>
-          <button @click="selectedIds = new Set(); showBulkBar = false" class="btn-ghost text-xs px-2 py-1">Clear</button>
+          <button @click="handleBulkAction('delete')" class="btn-ghost text-xs px-2 py-1 text-red-600">{{ t('admin.deleteAll') }}</button>
+          <button @click="selectedIds = new Set(); showBulkBar = false" class="btn-ghost text-xs px-2 py-1">{{ t('admin.clear') }}</button>
         </div>
 
         <div v-else class="card p-0 overflow-hidden">
@@ -527,12 +540,12 @@ onMounted(() => {
                 <th class="text-left text-xs font-semibold text-surface-500 px-4 py-3 w-10">
                   <input type="checkbox" :checked="selectedIds.size === users.length && users.length > 0" @change="toggleSelectAll" class="rounded border-surface-300" />
                 </th>
-                <th class="text-left text-xs font-semibold text-surface-500 px-4 py-3">User</th>
-                <th class="text-left text-xs font-semibold text-surface-500 px-4 py-3">Status</th>
-                <th class="text-left text-xs font-semibold text-surface-500 px-4 py-3">Role</th>
-                <th class="text-left text-xs font-semibold text-surface-500 px-4 py-3">Stats</th>
-                <th class="text-left text-xs font-semibold text-surface-500 px-4 py-3">Joined</th>
-                <th class="text-right text-xs font-semibold text-surface-500 px-4 py-3">Actions</th>
+                <th class="text-left text-xs font-semibold text-surface-500 px-4 py-3">{{ t('admin.user') }}</th>
+                <th class="text-left text-xs font-semibold text-surface-500 px-4 py-3">{{ t('admin.status') }}</th>
+                <th class="text-left text-xs font-semibold text-surface-500 px-4 py-3">{{ t('admin.role') }}</th>
+                <th class="text-left text-xs font-semibold text-surface-500 px-4 py-3">{{ t('admin.stats') }}</th>
+                <th class="text-left text-xs font-semibold text-surface-500 px-4 py-3">{{ t('admin.joined') }}</th>
+                <th class="text-right text-xs font-semibold text-surface-500 px-4 py-3">{{ t('admin.actions') }}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-surface-100 dark:divide-surface-800">
@@ -560,24 +573,24 @@ onMounted(() => {
                 </td>
                 <td class="px-4 py-3">
                   <div class="flex gap-3 text-xs text-surface-500">
-                    <span title="Boards">{{ user._count.boards }} boards</span>
-                    <span title="Tasks">{{ user._count.tasks }} tasks</span>
+                    <span title="Boards">{{ user._count.boards }} {{ t('admin.boardsCount') }}</span>
+                    <span title="Tasks">{{ user._count.tasks }} {{ t('admin.tasksCount') }}</span>
                   </div>
                 </td>
                 <td class="px-4 py-3 text-xs text-surface-500">{{ formatDate(user.createdAt) }}</td>
                 <td class="px-4 py-3">
                   <div class="flex items-center justify-end gap-1">
-                    <button @click="openDetailDrawer(user.id)" class="p-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-600" title="View Details">
+                    <button @click="openDetailDrawer(user.id)" class="p-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-600" :title="t('admin.viewDetails')">
                       <Eye :size="16" />
                     </button>
-                    <button @click="openEditModal(user)" class="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/30 text-blue-600" title="Edit">
+                    <button @click="openEditModal(user)" class="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/30 text-blue-600" :title="t('admin.edit')">
                       <Edit :size="16" />
                     </button>
                     <button
                       v-if="user.status === 'PENDING'"
                       @click="approveUser(user.id)"
                       class="p-1.5 rounded-lg hover:bg-green-50 dark:hover:bg-green-950/30 text-green-600"
-                      title="Approve"
+                      :title="t('admin.approve')"
                     >
                       <UserCheck :size="16" />
                     </button>
@@ -585,7 +598,7 @@ onMounted(() => {
                       v-if="user.status !== 'BANNED'"
                       @click="banUser(user.id)"
                       class="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600"
-                      title="Ban"
+                      :title="t('admin.ban')"
                     >
                       <UserX :size="16" />
                     </button>
@@ -593,7 +606,7 @@ onMounted(() => {
                       v-if="user.status === 'BANNED'"
                       @click="unbanUser(user.id)"
                       class="p-1.5 rounded-lg hover:bg-green-50 dark:hover:bg-green-950/30 text-green-600"
-                      title="Unban"
+                      :title="t('admin.unban')"
                     >
                       <UserCheck :size="16" />
                     </button>
@@ -601,7 +614,7 @@ onMounted(() => {
                       @click="handleResetPassword(user.id, user.name)"
                       :disabled="resettingPassword === user.id"
                       class="p-1.5 rounded-lg hover:bg-yellow-50 dark:hover:bg-yellow-950/30 text-yellow-600 disabled:opacity-50"
-                      title="Reset Password"
+                      :title="t('admin.resetPassword')"
                     >
                       <Loader2 v-if="resettingPassword === user.id" :size="16" class="animate-spin" />
                       <KeyRound v-else :size="16" />
@@ -610,7 +623,7 @@ onMounted(() => {
                       v-if="user.id !== authStore.user?.id && user.role !== 'ADMIN'"
                       @click="handleDeleteUser(user.id, user.name)"
                       class="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600"
-                      title="Delete"
+                      :title="t('admin.delete')"
                     >
                       <Trash2 :size="16" />
                     </button>
@@ -637,8 +650,8 @@ onMounted(() => {
               </div>
               <div class="flex items-center justify-between">
                 <div class="flex gap-3 text-xs text-surface-500">
-                  <span>{{ user._count.boards }} boards</span>
-                  <span>{{ user._count.tasks }} tasks</span>
+                  <span>{{ user._count.boards }} {{ t('admin.boardsCount') }}</span>
+                  <span>{{ user._count.tasks }} {{ t('admin.tasksCount') }}</span>
                 </div>
                 <div class="flex gap-1 flex-wrap">
                   <button @click="openEditModal(user)" class="p-1.5 rounded-lg text-blue-600 bg-blue-50 dark:bg-blue-950/30">
@@ -666,16 +679,29 @@ onMounted(() => {
         </div>
 
         <!-- Pagination -->
-        <div v-if="totalPages > 1" class="flex items-center justify-center gap-2">
-          <button
-            v-for="p in totalPages"
-            :key="p"
-            @click="page = p; fetchUsers()"
-            class="w-8 h-8 rounded-lg text-sm font-medium transition-colors"
-            :class="page === p ? 'bg-primary-600 text-white' : 'bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700'"
-          >
-            {{ p }}
-          </button>
+        <div v-if="total > 0" class="flex items-center justify-between mt-4 gap-4 flex-wrap">
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-surface-400">{{ t('admin.rowsPerPage') }}</span>
+            <select v-model="pageSize" @change="onPageSizeChange" class="text-xs bg-surface-100 dark:bg-surface-800 rounded-md px-2 py-1 border-0">
+              <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }}</option>
+            </select>
+            <span class="text-xs text-surface-400">{{ t('admin.showing', { from: startItem, to: endItem, total }) }}</span>
+          </div>
+          <div v-if="totalPages > 1" class="flex items-center gap-1">
+            <button @click="page = 1; fetchUsers()" :disabled="page === 1" class="p-1.5 rounded-md hover:bg-surface-100 dark:hover:bg-surface-800 disabled:opacity-30 disabled:cursor-not-allowed">
+              <ChevronsLeft :size="16" />
+            </button>
+            <button @click="page = Math.max(1, page - 1); fetchUsers()" :disabled="page === 1" class="p-1.5 rounded-md hover:bg-surface-100 dark:hover:bg-surface-800 disabled:opacity-30 disabled:cursor-not-allowed">
+              <ChevronLeft :size="16" />
+            </button>
+            <span class="px-3 py-1 text-xs font-medium">{{ page }} / {{ totalPages }}</span>
+            <button @click="page = Math.min(totalPages, page + 1); fetchUsers()" :disabled="page === totalPages" class="p-1.5 rounded-md hover:bg-surface-100 dark:hover:bg-surface-800 disabled:opacity-30 disabled:cursor-not-allowed">
+              <ChevronRight :size="16" />
+            </button>
+            <button @click="page = totalPages; fetchUsers()" :disabled="page === totalPages" class="p-1.5 rounded-md hover:bg-surface-100 dark:hover:bg-surface-800 disabled:opacity-30 disabled:cursor-not-allowed">
+              <ChevronsRight :size="16" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -688,7 +714,7 @@ onMounted(() => {
     >
       <div class="card p-6 w-96 max-w-[90vw]">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="font-bold text-lg">Yeni Kullanıcı Ekle</h3>
+          <h3 class="font-bold text-lg">{{ t('admin.addNewUser') }}</h3>
           <button @click="showCreateModal = false" class="p-1 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800">
             <X :size="18" />
           </button>
@@ -703,15 +729,15 @@ onMounted(() => {
 
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium mb-1">İsim</label>
-            <input v-model="createForm.name" type="text" placeholder="Ad Soyad" class="input w-full" />
+            <label class="block text-sm font-medium mb-1">{{ t('common.name') }}</label>
+            <input v-model="createForm.name" type="text" :placeholder="t('register.namePlaceholder')" class="input w-full" />
           </div>
           <div>
-            <label class="block text-sm font-medium mb-1">E-posta</label>
-            <input v-model="createForm.email" type="email" placeholder="kullanici@example.com" class="input w-full" />
+            <label class="block text-sm font-medium mb-1">{{ t('common.email') }}</label>
+            <input v-model="createForm.email" type="email" placeholder="user@example.com" class="input w-full" />
           </div>
           <div>
-            <label class="block text-sm font-medium mb-1">Rol</label>
+            <label class="block text-sm font-medium mb-1">{{ t('common.role') }}</label>
             <select v-model="createForm.role" class="input w-full">
               <option v-for="r in roleOptions" :key="r.value" :value="r.value">{{ r.label }}</option>
             </select>
@@ -719,11 +745,11 @@ onMounted(() => {
         </div>
 
         <div class="flex gap-2 mt-6">
-          <button @click="showCreateModal = false" class="btn-secondary flex-1">İptal</button>
+          <button @click="showCreateModal = false" class="btn-secondary flex-1">{{ t('common.cancel') }}</button>
           <button @click="handleCreateUser" :disabled="creating" class="btn-primary flex-1 disabled:opacity-50 flex items-center justify-center gap-2">
             <Loader2 v-if="creating" :size="16" class="animate-spin" />
             <UserPlus v-else :size="16" />
-            {{ creating ? 'Oluşturuluyor...' : 'Oluştur ve Gönder' }}
+            {{ creating ? t('admin.creating') : t('admin.createAndSend') }}
           </button>
         </div>
       </div>
@@ -737,7 +763,7 @@ onMounted(() => {
     >
       <div class="card p-6 w-96 max-w-[90vw]">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="font-bold text-lg">Kullanıcı Düzenle</h3>
+          <h3 class="font-bold text-lg">{{ t('admin.editUser') }}</h3>
           <button @click="showEditModal = false" class="p-1 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800">
             <X :size="18" />
           </button>
@@ -752,39 +778,39 @@ onMounted(() => {
 
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium mb-1">İsim</label>
+            <label class="block text-sm font-medium mb-1">{{ t('common.name') }}</label>
             <input v-model="editForm.name" type="text" class="input w-full" />
           </div>
           <div>
-            <label class="block text-sm font-medium mb-1">E-posta</label>
+            <label class="block text-sm font-medium mb-1">{{ t('common.email') }}</label>
             <input v-model="editForm.email" type="email" class="input w-full" />
           </div>
           <div>
-            <label class="block text-sm font-medium mb-1">Rol</label>
+            <label class="block text-sm font-medium mb-1">{{ t('common.role') }}</label>
             <select v-model="editForm.role" class="input w-full">
               <option v-for="r in roleOptions" :key="r.value" :value="r.value">{{ r.label }}</option>
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium mb-1">Durum</label>
+            <label class="block text-sm font-medium mb-1">{{ t('common.status') }}</label>
             <select v-model="editForm.status" class="input w-full">
-              <option value="ACTIVE">Active</option>
-              <option value="PENDING">Pending</option>
-              <option value="BANNED">Banned</option>
+              <option value="ACTIVE">{{ t('admin.active') }}</option>
+              <option value="PENDING">{{ t('admin.pending') }}</option>
+              <option value="BANNED">{{ t('admin.banned') }}</option>
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium mb-1">Bio</label>
-            <textarea v-model="editForm.bio" rows="3" placeholder="Kullanıcı hakkında..." class="input w-full"></textarea>
+            <label class="block text-sm font-medium mb-1">{{ t('admin.bio') }}</label>
+            <textarea v-model="editForm.bio" rows="3" :placeholder="t('profile.bioPlaceholder')" class="input w-full"></textarea>
           </div>
         </div>
 
         <div class="flex gap-2 mt-6">
-          <button @click="showEditModal = false" class="btn-secondary flex-1">İptal</button>
+          <button @click="showEditModal = false" class="btn-secondary flex-1">{{ t('common.cancel') }}</button>
           <button @click="handleEditUser" :disabled="editing" class="btn-primary flex-1 disabled:opacity-50 flex items-center justify-center gap-2">
             <Loader2 v-if="editing" :size="16" class="animate-spin" />
             <Edit v-else :size="16" />
-            {{ editing ? 'Kaydediliyor...' : 'Kaydet' }}
+            {{ editing ? t('admin.editing') : t('common.save') }}
           </button>
         </div>
       </div>
@@ -801,7 +827,7 @@ onMounted(() => {
           <button @click="showDetailDrawer = false" class="p-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800">
             <ChevronLeft :size="20" />
           </button>
-          <h3 class="font-bold text-lg">Kullanıcı Detayı</h3>
+          <h3 class="font-bold text-lg">{{ t('admin.userDetail') }}</h3>
         </div>
 
         <div v-if="detailLoading" class="flex justify-center py-12">
@@ -827,26 +853,26 @@ onMounted(() => {
 
           <!-- Bio -->
           <div v-if="detailUser.bio">
-            <h4 class="text-xs font-semibold text-surface-400 uppercase mb-2">Bio</h4>
+            <h4 class="text-xs font-semibold text-surface-400 uppercase mb-2">{{ t('admin.bio') }}</h4>
             <p class="text-sm text-surface-600 dark:text-surface-300">{{ detailUser.bio }}</p>
           </div>
 
           <!-- Info grid -->
           <div class="grid grid-cols-2 gap-4">
             <div class="card p-3">
-              <p class="text-xs text-surface-400">Last Login</p>
-              <p class="text-sm font-medium">{{ detailUser.lastLoginAt ? formatDateTime(detailUser.lastLoginAt) : 'Never' }}</p>
+              <p class="text-xs text-surface-400">{{ t('admin.lastLogin') }}</p>
+              <p class="text-sm font-medium">{{ detailUser.lastLoginAt ? formatDateTime(detailUser.lastLoginAt) : t('admin.never') }}</p>
             </div>
             <div class="card p-3">
-              <p class="text-xs text-surface-400">Joined</p>
+              <p class="text-xs text-surface-400">{{ t('admin.joined') }}</p>
               <p class="text-sm font-medium">{{ formatDate(detailUser.createdAt) }}</p>
             </div>
             <div v-if="detailUser.department" class="card p-3">
-              <p class="text-xs text-surface-400">Department</p>
+              <p class="text-xs text-surface-400">{{ t('admin.department') }}</p>
               <p class="text-sm font-medium">{{ detailUser.department.name }}</p>
             </div>
             <div v-if="detailUser.team" class="card p-3">
-              <p class="text-xs text-surface-400">Team</p>
+              <p class="text-xs text-surface-400">{{ t('admin.team') }}</p>
               <p class="text-sm font-medium">{{ detailUser.team.name }}</p>
             </div>
           </div>
@@ -855,25 +881,25 @@ onMounted(() => {
           <div class="grid grid-cols-4 gap-3">
             <div class="text-center p-3 rounded-lg bg-primary-50 dark:bg-primary-950/20">
               <p class="text-2xl font-bold text-primary-600">{{ detailUser._count?.boards || 0 }}</p>
-              <p class="text-xs text-surface-500">Boards</p>
+              <p class="text-xs text-surface-500">{{ t('admin.boardsCount') }}</p>
             </div>
             <div class="text-center p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20">
               <p class="text-2xl font-bold text-blue-600">{{ detailUser._count?.tasks || 0 }}</p>
-              <p class="text-xs text-surface-500">Tasks</p>
+              <p class="text-xs text-surface-500">{{ t('admin.tasksCount') }}</p>
             </div>
             <div class="text-center p-3 rounded-lg bg-green-50 dark:bg-green-950/20">
               <p class="text-2xl font-bold text-green-600">{{ detailUser._count?.comments || 0 }}</p>
-              <p class="text-xs text-surface-500">Comments</p>
+              <p class="text-xs text-surface-500">{{ t('admin.comments') }}</p>
             </div>
             <div class="text-center p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20">
               <p class="text-2xl font-bold text-orange-600">{{ detailUser._count?.activity || 0 }}</p>
-              <p class="text-xs text-surface-500">Activity</p>
+              <p class="text-xs text-surface-500">{{ t('admin.activity') }}</p>
             </div>
           </div>
 
           <!-- Recent tasks -->
           <div v-if="detailUser.recentTasks?.length">
-            <h4 class="text-xs font-semibold text-surface-400 uppercase mb-2">Recent Tasks</h4>
+            <h4 class="text-xs font-semibold text-surface-400 uppercase mb-2">{{ t('admin.recentTasks') }}</h4>
             <div class="space-y-2">
               <div v-for="task in detailUser.recentTasks" :key="task.id" class="card p-3">
                 <div class="flex items-center justify-between">
@@ -887,7 +913,7 @@ onMounted(() => {
 
           <!-- Recent activity -->
           <div v-if="detailUser.recentActivity?.length">
-            <h4 class="text-xs font-semibold text-surface-400 uppercase mb-2">Recent Activity</h4>
+            <h4 class="text-xs font-semibold text-surface-400 uppercase mb-2">{{ t('admin.recentActivity') }}</h4>
             <div class="space-y-2">
               <div v-for="act in detailUser.recentActivity" :key="act.id" class="flex items-start gap-3 p-2 rounded-lg hover:bg-surface-50 dark:hover:bg-surface-800/30">
                 <ActivityIcon :size="14" class="text-surface-400 mt-0.5 shrink-0" />
@@ -902,10 +928,10 @@ onMounted(() => {
           <!-- Action buttons -->
           <div class="flex gap-2 pt-4 border-t border-surface-200 dark:border-surface-800">
             <button @click="openEditModal(detailUser); showDetailDrawer = false" class="btn-secondary flex-1 text-sm flex items-center justify-center gap-2">
-              <Edit :size="16" /> Düzenle
+              <Edit :size="16" /> {{ t('admin.edit') }}
             </button>
             <button @click="handleResetPassword(detailUser.id, detailUser.name)" class="btn-secondary flex-1 text-sm flex items-center justify-center gap-2">
-              <KeyRound :size="16" /> Şifre Sıfırla
+              <KeyRound :size="16" /> {{ t('admin.resetPassword') }}
             </button>
           </div>
         </div>

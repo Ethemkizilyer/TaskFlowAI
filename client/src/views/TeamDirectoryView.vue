@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { adminApi, authApi } from '@/api'
 import { useI18n } from 'vue-i18n'
 import {
   Users, Search, Mail, MessageSquare, Phone, Calendar,
-  Shield, Brain, Zap, TrendingUp, Loader2, Building2, Crown
+  Shield, Brain, Zap, TrendingUp, Loader2, Building2, Crown,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight
 } from 'lucide-vue-next'
 import { ROLE_LABELS, ROLE_COLORS } from '@/types'
 
@@ -18,6 +19,9 @@ const loading = ref(true)
 const members = ref<any[]>([])
 const searchQuery = ref('')
 const roleFilter = ref('')
+const currentPage = ref(1)
+const pageSize = ref(12)
+const pageSizeOptions = [12, 24, 48, 96]
 
 const roles = ['ADMIN', 'DIRECTOR', 'MANAGER', 'TEAM_LEADER', 'PERSONNEL']
 
@@ -31,10 +35,18 @@ const filteredMembers = computed(() => {
   })
 })
 
-const groupedByRole = computed(() => {
+const totalFiltered = computed(() => filteredMembers.value.length)
+const totalPages = computed(() => Math.max(1, Math.ceil(totalFiltered.value / pageSize.value)))
+
+const paginatedMembers = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredMembers.value.slice(start, start + pageSize.value)
+})
+
+const paginatedGroupedByRole = computed(() => {
   const groups: Record<string, any[]> = {}
   roles.forEach(r => { groups[r] = [] })
-  filteredMembers.value.forEach(m => {
+  paginatedMembers.value.forEach(m => {
     if (groups[m.role]) {
       groups[m.role].push(m)
     } else {
@@ -43,6 +55,17 @@ const groupedByRole = computed(() => {
   })
   return groups
 })
+
+const startItem = computed(() => totalFiltered.value === 0 ? 0 : (currentPage.value - 1) * pageSize.value + 1)
+const endItem = computed(() => Math.min(currentPage.value * pageSize.value, totalFiltered.value))
+
+const onPageSizeChange = () => {
+  currentPage.value = 1
+}
+
+const goToPage = (page: number) => {
+  currentPage.value = Math.max(1, Math.min(totalPages.value, page))
+}
 
 const stats = computed(() => [
   { label: t('directory.totalMembers'), value: members.value.length, icon: Users, color: 'from-primary-500 to-primary-700' },
@@ -75,6 +98,10 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+})
+
+watch([searchQuery, roleFilter], () => {
+  currentPage.value = 1
 })
 </script>
 
@@ -135,17 +162,17 @@ onMounted(async () => {
       <!-- Members grouped by role -->
       <div v-else class="space-y-8">
         <div v-for="role in roles" :key="role">
-          <template v-if="groupedByRole[role]?.length > 0">
+          <template v-if="paginatedGroupedByRole[role]?.length > 0">
             <div class="flex items-center gap-2 mb-4">
               <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold" :class="(ROLE_COLORS as any)[role]">
                 <Shield :size="12" /> {{ t(`roles.${role}`) }}
               </span>
-              <span class="text-sm text-surface-400">({{ groupedByRole[role].length }})</span>
+              <span class="text-sm text-surface-400">({{ paginatedGroupedByRole[role].length }})</span>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               <div
-                v-for="member in groupedByRole[role]"
+                v-for="member in paginatedGroupedByRole[role]"
                 :key="member.id"
                 class="glass-card p-5 hover:shadow-xl transition-all hover:-translate-y-1 group"
               >
@@ -210,9 +237,35 @@ onMounted(async () => {
         </div>
 
         <!-- Empty state -->
-        <div v-if="filteredMembers.length === 0" class="text-center py-20">
+        <div v-if="totalFiltered === 0" class="text-center py-20">
           <Users :size="48" class="mx-auto text-surface-300 dark:text-surface-600 mb-4" />
           <p class="text-surface-400">{{ t('directory.noMembers') }}</p>
+        </div>
+
+        <!-- Pagination -->
+        <div v-if="totalFiltered > 0" class="flex items-center justify-between mt-6 gap-4 flex-wrap pt-4 border-t border-surface-100 dark:border-surface-800">
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-surface-400">{{ t('directory.rowsPerPage') }}</span>
+            <select v-model="pageSize" @change="onPageSizeChange" class="text-xs bg-surface-100 dark:bg-surface-800 rounded-md px-2 py-1 border-0">
+              <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }}</option>
+            </select>
+            <span class="text-xs text-surface-400">{{ t('directory.showing', { from: startItem, to: endItem, total: totalFiltered }) }}</span>
+          </div>
+          <div v-if="totalPages > 1" class="flex items-center gap-1">
+            <button @click="goToPage(1)" :disabled="currentPage === 1" class="p-1.5 rounded-md hover:bg-surface-100 dark:hover:bg-surface-800 disabled:opacity-30 disabled:cursor-not-allowed">
+              <ChevronsLeft :size="16" />
+            </button>
+            <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" class="p-1.5 rounded-md hover:bg-surface-100 dark:hover:bg-surface-800 disabled:opacity-30 disabled:cursor-not-allowed">
+              <ChevronLeft :size="16" />
+            </button>
+            <span class="px-3 py-1 text-xs font-medium">{{ currentPage }} / {{ totalPages }}</span>
+            <button @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages" class="p-1.5 rounded-md hover:bg-surface-100 dark:hover:bg-surface-800 disabled:opacity-30 disabled:cursor-not-allowed">
+              <ChevronRight :size="16" />
+            </button>
+            <button @click="goToPage(totalPages)" :disabled="currentPage === totalPages" class="p-1.5 rounded-md hover:bg-surface-100 dark:hover:bg-surface-800 disabled:opacity-30 disabled:cursor-not-allowed">
+              <ChevronsRight :size="16" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

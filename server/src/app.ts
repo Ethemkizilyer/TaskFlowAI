@@ -17,7 +17,14 @@ import automationRoutes from './routes/automationRoutes';
 import moodRoutes from './routes/moodRoutes';
 import timeTrackingRoutes from './routes/timeTrackingRoutes';
 import settingsRoutes from './routes/settingsRoutes';
+import gamificationRoutes from './routes/gamificationRoutes';
+import burndownRoutes from './routes/burndownRoutes';
+import recurringTaskRoutes from './routes/recurringTaskRoutes';
+import customFieldRoutes from './routes/customFieldRoutes';
+import auditLogRoutes from './routes/auditLogRoutes';
 import { notFound, errorHandler } from './middleware/errorHandler';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './config/swagger';
 
 const app = express();
 
@@ -72,6 +79,10 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/boards', boardRoutes);
+app.use('/api/boards', burndownRoutes);
+app.use('/api/boards', recurringTaskRoutes);
+app.use('/api/boards', customFieldRoutes);
+app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
@@ -80,7 +91,10 @@ app.use('/api/automations', automationRoutes);
 app.use('/api/mood', moodRoutes);
 app.use('/api/time-tracking', timeTrackingRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/gamification', gamificationRoutes);
 app.use('/api', searchRoutes);
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use(notFound);
 app.use(errorHandler);

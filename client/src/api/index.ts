@@ -165,13 +165,21 @@ export const calendarApi = {
 }
 
 export const timeTrackingApi = {
-  getAll: () => api.get('/time-tracking'),
-  create: (data: { taskTitle: string; boardId?: string; duration: number; description?: string; date?: string }) =>
+  getAll: (params?: { startDate?: string; endDate?: string; boardId?: string; billable?: boolean; tag?: string; page?: number; limit?: number }) =>
+    api.get('/time-tracking', { params }),
+  create: (data: { taskTitle: string; boardId?: string; duration: number; description?: string; billable?: boolean; hourlyRate?: number; tags?: string[]; date?: string }) =>
     api.post('/time-tracking', data),
-  update: (id: string, data: Partial<{ taskTitle: string; boardId: string; duration: number; description: string; date: string }>) =>
+  update: (id: string, data: Partial<{ taskTitle: string; boardId: string | null; duration: number; description: string | null; billable: boolean; hourlyRate: number | null; tags: string[]; date: string }>) =>
     api.patch(`/time-tracking/${id}`, data),
   delete: (id: string) => api.delete(`/time-tracking/${id}`),
-  getStats: () => api.get('/time-tracking/stats'),
+  getStats: (params?: { startDate?: string; endDate?: string }) =>
+    api.get('/time-tracking/stats', { params }),
+  startTimer: (data: { taskTitle: string; boardId?: string; billable?: boolean; hourlyRate?: number; tags?: string[] }) =>
+    api.post('/time-tracking/start', data),
+  stopTimer: () => api.post('/time-tracking/stop'),
+  getActiveTimer: () => api.get('/time-tracking/active'),
+  exportCsv: (params?: { startDate?: string; endDate?: string }) =>
+    api.get('/time-tracking/export', { params }),
 }
 
 export const settingsApi = {
@@ -181,4 +189,90 @@ export const settingsApi = {
 
 export const reportsApi = {
   getTeamPerformance: () => api.get('/reports/team-performance'),
+}
+
+export const gamificationApi = {
+  getStats: () => api.get('/gamification/stats'),
+  getLeaderboard: () => api.get('/gamification/leaderboard'),
+  getAchievements: () => api.get('/gamification/achievements'),
+}
+
+export const taskDependencyApi = {
+  getDependencies: (boardId: string, taskId: string) =>
+    api.get(`/boards/${boardId}/tasks/${taskId}/dependencies`),
+  addDependency: (boardId: string, taskId: string, dependsOnId: string) =>
+    api.post(`/boards/${boardId}/tasks/${taskId}/dependencies`, { dependsOnId }),
+  removeDependency: (boardId: string, taskId: string, dependsOnId: string) =>
+    api.delete(`/boards/${boardId}/tasks/${taskId}/dependencies/${dependsOnId}`),
+  getBoardDependencies: (boardId: string) =>
+    api.get(`/boards/${boardId}/tasks/dependencies`),
+}
+
+export const burndownApi = {
+  getBurndown: (boardId: string, startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams()
+    if (startDate) params.set('startDate', startDate)
+    if (endDate) params.set('endDate', endDate)
+    const qs = params.toString()
+    return api.get(`/boards/${boardId}/burndown${qs ? `?${qs}` : ''}`)
+  },
+}
+
+export const recurringTaskApi = {
+  getByBoard: (boardId: string) =>
+    api.get(`/boards/${boardId}/recurring-tasks`),
+  create: (boardId: string, data: { title: string; description?: string; priority?: string; columnId?: string; assigneeId?: string; frequency: string; interval?: number; nextRunAt: string }) =>
+    api.post(`/boards/${boardId}/recurring-tasks`, data),
+  update: (boardId: string, id: string, data: Partial<{ title: string; description: string; priority: string; columnId: string; assigneeId: string; frequency: string; interval: number; nextRunAt: string; isActive: boolean }>) =>
+    api.patch(`/boards/${boardId}/recurring-tasks/${id}`, data),
+  delete: (boardId: string, id: string) =>
+    api.delete(`/boards/${boardId}/recurring-tasks/${id}`),
+  toggle: (boardId: string, id: string) =>
+    api.patch(`/boards/${boardId}/recurring-tasks/${id}/toggle`),
+}
+
+export const customFieldApi = {
+  getByBoard: (boardId: string) =>
+    api.get(`/boards/${boardId}/custom-fields`),
+  create: (boardId: string, data: { name: string; type: string; options?: string[]; required?: boolean; position?: number }) =>
+    api.post(`/boards/${boardId}/custom-fields`, data),
+  update: (boardId: string, fieldId: string, data: Partial<{ name: string; type: string; options: string[]; required: boolean; position: number }>) =>
+    api.patch(`/boards/${boardId}/custom-fields/${fieldId}`, data),
+  delete: (boardId: string, fieldId: string) =>
+    api.delete(`/boards/${boardId}/custom-fields/${fieldId}`),
+  getTaskValues: (taskId: string) =>
+    api.get(`/boards/tasks/${taskId}/custom-fields`),
+  setTaskValue: (taskId: string, fieldId: string, value: string | null) =>
+    api.put(`/boards/tasks/${taskId}/custom-fields/${fieldId}`, { value }),
+}
+
+export const auditLogApi = {
+  getLogs: (params?: { page?: number; limit?: number; userId?: string; entity?: string; action?: string; startDate?: string; endDate?: string }) => {
+    const qs = new URLSearchParams()
+    if (params?.page) qs.set('page', String(params.page))
+    if (params?.limit) qs.set('limit', String(params.limit))
+    if (params?.userId) qs.set('userId', params.userId)
+    if (params?.entity) qs.set('entity', params.entity)
+    if (params?.action) qs.set('action', params.action)
+    if (params?.startDate) qs.set('startDate', params.startDate)
+    if (params?.endDate) qs.set('endDate', params.endDate)
+    const s = qs.toString()
+    return api.get(`/audit-logs${s ? `?${s}` : ''}`)
+  },
+  getStats: () => api.get('/audit-logs/stats'),
+}
+
+export const aiChatApi = {
+  send: (message: string, history?: { role: string; content: string }[]) =>
+    api.post('/ai/chat', { message, history: history || [] }),
+}
+
+export const userSelectApi = {
+  getUsers: (search?: string, limit?: number) => {
+    const params = new URLSearchParams()
+    if (search) params.set('search', search)
+    if (limit) params.set('limit', String(limit))
+    const s = params.toString()
+    return api.get(`/users/select${s ? `?${s}` : ''}`)
+  },
 }

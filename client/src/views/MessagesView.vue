@@ -9,9 +9,11 @@ import {
 } from '@/api/socket'
 import { Send, ArrowLeft, Users, Search, Plus, Circle, Check, UserPlus } from 'lucide-vue-next'
 import type { Conversation, Message, User } from '@/types'
+import { useI18n } from 'vue-i18n'
 
 const authStore = useAuthStore()
 const messageStore = useMessageStore()
+const { t } = useI18n({ useScope: 'global' })
 
 const conversations = ref<Conversation[]>([])
 const activeConversation = ref<Conversation | null>(null)
@@ -77,15 +79,15 @@ const typingDisplay = computed(() => {
     }
   })
   if (typers.length === 0) return ''
-  if (typers.length === 1) return `${typers[0]} yazıyor...`
-  if (typers.length === 2) return `${typers[0]} ve ${typers[1]} yazıyor...`
-  return `${typers[0]} ve ${typers.length - 1} kişi yazıyor...`
+  if (typers.length === 1) return t('messages.typingOne', { name: typers[0] })
+  if (typers.length === 2) return t('messages.typingTwo', { first: typers[0], second: typers[1] })
+  return t('messages.typingMany', { first: typers[0], count: typers.length - 1 })
 })
 
 const getConversationName = (conv: Conversation) => {
   if (conv.title) return conv.title
   const otherUser = conv.members.find((m) => m.userId !== authStore.user?.id)
-  return otherUser?.user.name || 'Unknown'
+  return otherUser?.user.name || t('common.unknown')
 }
 
 const getConversationAvatar = (conv: Conversation) => {
@@ -101,11 +103,11 @@ const getOnlineMembers = (conv: Conversation) => {
 const getOnlineStatusText = (conv: Conversation) => {
   const online = getOnlineMembers(conv)
   if (conv.type === 'DIRECT') {
-    return online.length > 0 ? 'Online' : 'Offline'
+    return online.length > 0 ? t('common.online') : t('common.offline')
   }
-  if (online.length === 0) return `${conv.members.length - 1} üye`
-  if (online.length === 1) return `${online[0].user.name} online`
-  return `${online.length}/${conv.members.length - 1} online`
+  if (online.length === 0) return t('messages.memberCount', { count: conv.members.length - 1 })
+  if (online.length === 1) return t('messages.onlineStatus', { name: online[0].user.name })
+  return t('messages.onlineCount', { online: online.length, total: conv.members.length - 1 })
 }
 
 const isUserOnline = (userId: string) => onlineUserIds.value.has(userId)
@@ -116,7 +118,7 @@ const formatTime = (date: string) => {
   const diff = now.getTime() - d.getTime()
   const mins = Math.floor(diff / 60000)
   const hours = Math.floor(diff / 3600000)
-  if (mins < 1) return 'now'
+  if (mins < 1) return t('messages.justNow')
   if (mins < 60) return `${mins}m`
   if (hours < 24) return `${hours}h`
   return d.toLocaleDateString()
@@ -238,7 +240,7 @@ const toggleUserSelection = (userId: string) => {
 const showBrowserNotification = (senderName: string, content: string) => {
   if (document.hasFocus()) return
   if ('Notification' in window && Notification.permission === 'granted') {
-    new Notification(`New message from ${senderName}`, {
+    new Notification(t('messages.newMessageFrom', { name: senderName }), {
       body: content.length > 50 ? content.substring(0, 50) + '...' : content,
       icon: '/favicon.ico',
     })
@@ -261,7 +263,7 @@ watch(activeConversation, (conv) => {
       scrollToBottom()
       messageApi.markRead(conv.id)
       messageStore.decrementUnread(conv.id)
-      showBrowserNotification(message.sender?.name || 'Unknown', message.content)
+      showBrowserNotification(message.sender?.name || t('common.unknown'), message.content)
     })
 
     unsubTyping = onTyping(conv.id, (data) => {
@@ -314,7 +316,7 @@ onUnmounted(() => {
     <div class="w-80 border-r border-surface-200 dark:border-surface-800 flex flex-col shrink-0">
       <div class="p-4 border-b border-surface-200 dark:border-surface-800">
         <div class="flex items-center justify-between mb-3">
-          <h2 class="font-bold text-lg">Messages</h2>
+          <h2 class="font-bold text-lg">{{ t('messages.title') }}</h2>
           <button @click="startNewChat" class="btn-ghost p-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800">
             <Plus :size="18" />
           </button>
@@ -324,7 +326,7 @@ onUnmounted(() => {
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="Search conversations..."
+            :placeholder="t('messages.searchConversations')"
             class="input pl-9 py-1.5 text-sm"
           />
         </div>
@@ -332,7 +334,7 @@ onUnmounted(() => {
 
       <div class="flex-1 overflow-y-auto">
         <div v-if="filteredConversations.length === 0" class="p-6 text-center text-sm text-surface-400">
-          No conversations yet
+          {{ t('messages.noConversations') }}
         </div>
         <button
           v-for="conv in filteredConversations"
@@ -354,9 +356,9 @@ onUnmounted(() => {
           <div class="flex-1 min-w-0 text-left">
             <p class="font-medium text-sm truncate">{{ getConversationName(conv) }}</p>
             <p v-if="conv.messages?.[0]" class="text-xs text-surface-500 truncate">
-              {{ conv.messages[0].senderId === authStore.user?.id ? 'You: ' : '' }}{{ conv.messages[0].content }}
+              {{ conv.messages[0].senderId === authStore.user?.id ? t('messages.you') + ': ' : '' }}{{ conv.messages[0].content }}
             </p>
-            <p v-else class="text-xs text-surface-400">No messages yet</p>
+            <p v-else class="text-xs text-surface-400">{{ t('messages.noMessages') }}</p>
           </div>
           <div class="flex flex-col items-end gap-1 shrink-0">
             <span class="text-[10px] text-surface-400">{{ formatTime(conv.updatedAt) }}</span>
@@ -384,7 +386,7 @@ onUnmounted(() => {
           >
             <p class="font-semibold text-sm">{{ getConversationName(activeConversation) }}</p>
             <p class="text-xs text-surface-500">
-              <span v-if="getOnlineStatusText(activeConversation) === 'Online'" class="text-green-500">● {{ getOnlineStatusText(activeConversation) }}</span>
+              <span v-if="getOnlineStatusText(activeConversation) === t('common.online')" class="text-green-500">● {{ getOnlineStatusText(activeConversation) }}</span>
               <span v-else class="text-surface-400">{{ getOnlineStatusText(activeConversation) }}</span>
             </p>
           </div>
@@ -401,7 +403,7 @@ onUnmounted(() => {
         <!-- Group members panel -->
         <div v-if="showGroupMembers && activeConversation.type === 'GROUP'" class="border-b border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900/50 max-h-64 overflow-y-auto">
           <div class="p-3 space-y-1">
-            <p class="text-xs font-semibold text-surface-400 uppercase mb-2 px-2">Üyeler ({{ activeConversation.members.length }})</p>
+            <p class="text-xs font-semibold text-surface-400 uppercase mb-2 px-2">{{ t('messages.members') }} ({{ activeConversation.members.length }})</p>
             <button
               v-for="member in activeConversation.members.filter((m) => m.userId !== authStore.user?.id)"
               :key="member.userId"
@@ -418,10 +420,10 @@ onUnmounted(() => {
               <div class="flex-1 min-w-0">
                 <p class="text-sm font-medium truncate">{{ member.user.name }}</p>
                 <p class="text-xs" :class="isUserOnline(member.userId) ? 'text-green-500' : 'text-surface-400'">
-                  {{ isUserOnline(member.userId) ? 'Online' : 'Offline' }}
+                  {{ isUserOnline(member.userId) ? t('common.online') : t('common.offline') }}
                 </p>
               </div>
-              <span class="text-[10px] text-primary-500 opacity-0 group-hover:opacity-100">Mesaj Gönder</span>
+              <span class="text-[10px] text-primary-500 opacity-0 group-hover:opacity-100">{{ t('messages.sendMessage') }}</span>
             </button>
           </div>
         </div>
@@ -467,7 +469,7 @@ onUnmounted(() => {
             <input
               v-model="newMessage"
               type="text"
-              placeholder="Type a message..."
+              :placeholder="t('messages.typeMessage')"
               class="input flex-1"
               @keyup.enter="sendMessage"
               @input="handleTyping"
@@ -487,7 +489,7 @@ onUnmounted(() => {
       <div v-else class="flex-1 flex items-center justify-center">
         <div class="text-center">
           <Users :size="48" class="mx-auto text-surface-300 dark:text-surface-700 mb-3" />
-          <p class="text-surface-400">Select a conversation to start messaging</p>
+          <p class="text-surface-400">{{ t('messages.selectConversation') }}</p>
         </div>
       </div>
     </div>
@@ -500,12 +502,12 @@ onUnmounted(() => {
     >
       <div class="card p-6 w-96 max-h-[80vh] flex flex-col">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="font-bold text-lg">Yeni Sohbet</h3>
+          <h3 class="font-bold text-lg">{{ t('messages.newChat') }}</h3>
           <button
             @click="isGroupChat = !isGroupChat"
             class="btn-ghost p-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800"
             :class="{ 'text-primary-500': isGroupChat }"
-            :title="isGroupChat ? 'Tekil sohbet' : 'Grup sohbeti'"
+            :title="isGroupChat ? t('messages.singleChat') : t('messages.groupChat')"
           >
             <UserPlus :size="18" />
           </button>
@@ -515,7 +517,7 @@ onUnmounted(() => {
           <input
             v-model="groupTitle"
             type="text"
-            placeholder="Grup adı..."
+            :placeholder="t('messages.groupNamePlaceholder')"
             class="input w-full"
           />
         </div>
@@ -526,14 +528,14 @@ onUnmounted(() => {
             :key="userId"
             class="inline-flex items-center gap-1 bg-primary-100 dark:bg-primary-950/30 text-primary-700 dark:text-primary-300 text-xs px-2 py-1 rounded-full"
           >
-            {{ onlineUsers.find((u) => u.id === userId)?.name || 'User' }}
+            {{ onlineUsers.find((u) => u.id === userId)?.name || t('common.user') }}
             <button @click="toggleUserSelection(userId)" class="hover:text-red-500">×</button>
           </span>
         </div>
 
         <div class="flex-1 overflow-y-auto space-y-2 mb-4">
           <div v-if="onlineUsers.length === 0" class="text-center text-sm text-surface-400 py-4">
-            Kullanıcı yok
+            {{ t('messages.noUsers') }}
           </div>
           <button
             v-for="user in onlineUsers"
@@ -555,13 +557,13 @@ onUnmounted(() => {
           </button>
         </div>
         <div class="flex gap-2">
-          <button @click="showNewChat = false; selectedUsers = []; isGroupChat = false; groupTitle = ''" class="btn-secondary flex-1">İptal</button>
+          <button @click="showNewChat = false; selectedUsers = []; isGroupChat = false; groupTitle = ''" class="btn-secondary flex-1">{{ t('common.cancel') }}</button>
           <button
             @click="createConversation"
             :disabled="selectedUsers.length === 0 || (isGroupChat && !groupTitle.trim())"
             class="btn-primary flex-1 disabled:opacity-50"
           >
-            {{ isGroupChat ? 'Grup Oluştur' : 'Sohbet Başlat' }}
+            {{ isGroupChat ? t('messages.createGroup') : t('messages.startChat') }}
           </button>
         </div>
       </div>

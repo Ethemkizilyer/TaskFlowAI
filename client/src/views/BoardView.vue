@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, computed } from 'vue'
+import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useBoardStore } from '@/stores/board'
 import { useAuthStore } from '@/stores/auth'
-import { aiApi } from '@/api'
+import { aiApi, userSelectApi } from '@/api'
 import { joinBoard, leaveBoard } from '@/api/socket'
 import {
   ArrowLeft, Plus, Sparkles, X, Loader2, Brain, TrendingDown,
@@ -12,6 +12,8 @@ import {
 } from 'lucide-vue-next'
 import type { Task, TaskPriority, Column } from '@/types'
 import { useI18n } from 'vue-i18n'
+import MultiSelect from '@/components/MultiSelect.vue'
+import type { SelectOption } from '@/components/MultiSelect.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -93,26 +95,54 @@ const canManageMembers = computed(() => {
 
 const newMemberEmail = ref('')
 const addingMember = ref(false)
+const memberOptions = ref<SelectOption[]>([])
+const memberSearchQuery = ref('')
+const membersLoading = ref(false)
+const selectedNewMembers = ref<string[]>([])
+
+const fetchMemberOptions = async (search?: string) => {
+  membersLoading.value = true
+  try {
+    const res = await userSelectApi.getUsers(search, 50)
+    const existingEmails = new Set(board.value?.members?.map((m: any) => m.user?.email) || [])
+    memberOptions.value = res.data.data
+      .filter((u: any) => !existingEmails.has(u.email))
+      .map((u: any) => ({
+        value: u.email,
+        label: u.name,
+        sublabel: u.email,
+        avatar: u.avatar,
+      }))
+  } catch {
+    // ignore
+  } finally {
+    membersLoading.value = false
+  }
+}
+
+watch(memberSearchQuery, (v) => fetchMemberOptions(v))
 
 const handleAddMember = async () => {
-  if (!newMemberEmail.value.trim()) return
+  if (selectedNewMembers.value.length === 0) return
   addingMember.value = true
   try {
-    await boardStore.addMember(boardId, newMemberEmail.value.trim())
-    newMemberEmail.value = ''
+    for (const email of selectedNewMembers.value) {
+      await boardStore.addMember(boardId, email)
+    }
+    selectedNewMembers.value = []
   } catch (e: any) {
-    alert(e.response?.data?.error || 'Failed to add member')
+    alert(e.response?.data?.error || t('board.addMemberFailed'))
   } finally {
     addingMember.value = false
   }
 }
 
 const handleRemoveMember = async (userId: string) => {
-  if (!confirm('Remove this member from the board?')) return
+  if (!confirm(t('board.confirmRemoveMember'))) return
   try {
     await boardStore.removeMember(boardId, userId)
   } catch (e: any) {
-    alert(e.response?.data?.error || 'Failed to remove member')
+    alert(e.response?.data?.error || t('board.removeMemberFailed'))
   }
 }
 
@@ -701,15 +731,18 @@ const hasActiveFilters = computed(() => {
 
         <div v-if="canManageMembers" class="mt-4 pt-4 border-t border-surface-200 dark:border-surface-800">
           <label class="block text-sm font-medium mb-1.5">{{ t('board.addMember') }}</label>
-          <div class="flex gap-2">
-            <input
-              v-model="newMemberEmail"
-              type="email"
-              placeholder="user@example.com"
-              class="input flex-1"
-              @keyup.enter="handleAddMember"
-            />
-            <button @click="handleAddMember" :disabled="addingMember || !newMemberEmail.trim()" class="btn-primary px-4">
+          <div class="flex gap-2 items-start">
+            <div class="flex-1">
+              <MultiSelect
+                v-model="selectedNewMembers"
+                :options="memberOptions"
+                :loading="membersLoading"
+                :placeholder="t('board.addMember')"
+                :search-placeholder="t('common.search')"
+                @search="fetchMemberOptions"
+              />
+            </div>
+            <button @click="handleAddMember" :disabled="addingMember || selectedNewMembers.length === 0" class="btn-primary px-4 shrink-0">
               <UserPlus :size="16" />
             </button>
           </div>

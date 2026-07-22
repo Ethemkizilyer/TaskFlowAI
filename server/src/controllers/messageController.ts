@@ -4,6 +4,7 @@ import prisma from '../config/prisma';
 import { AuthenticatedRequest, ApiResponse } from '../types';
 import { getIO } from '../sockets/socketHandler';
 import { createNotification } from './notificationController';
+import gamificationService from '../services/gamificationService';
 
 const createConversationSchema = z.object({
   type: z.enum(['DIRECT', 'GROUP']).default('DIRECT'),
@@ -192,7 +193,7 @@ export const createConversation = async (
         type,
         title: type === 'GROUP' ? title : null,
         members: {
-          create: allParticipantIds.map((userId) => ({ userId })),
+          create: allParticipantIds.map((userId) => ({ user: { connect: { id: userId } } })),
         },
       },
       include: {
@@ -242,7 +243,7 @@ export const sendMessage = async (
         content,
         attachments: attachments || null,
         conversationId,
-        senderId: req.userId,
+        senderId: req.userId!,
       },
       include: {
         sender: { select: { id: true, name: true, avatar: true } },
@@ -280,6 +281,8 @@ export const sendMessage = async (
         );
       }
     });
+
+    gamificationService.onMessageSent(req.userId!).catch(() => {});
 
     return res.status(201).json({ success: true, data: message, message: 'Message sent' });
   } catch (error) {

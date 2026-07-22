@@ -4,6 +4,7 @@ import prisma from '../config/prisma';
 import { AuthenticatedRequest, ApiResponse } from '../types';
 import { emitBoardEvent } from '../sockets/socketHandler';
 import { createNotification } from './notificationController';
+import gamificationService from '../services/gamificationService';
 
 const createTaskSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
@@ -196,6 +197,10 @@ export const updateTask = async (
           )
         );
       }
+
+      if (updated.assigneeId) {
+        gamificationService.onTaskCompleted(updated.assigneeId).catch(() => {});
+      }
     }
 
     emitBoardEvent(boardId, 'task:updated', updated);
@@ -307,6 +312,10 @@ export const moveTask = async (
           )
         );
       }
+
+      if (updated.assigneeId) {
+        gamificationService.onTaskCompleted(updated.assigneeId).catch(() => {});
+      }
     }
 
     emitBoardEvent(boardId, 'task:moved', { taskId, columnId, position, task: updated });
@@ -373,6 +382,8 @@ export const addComment = async (
     });
 
     emitBoardEvent(boardId, 'comment:added', { taskId, comment });
+
+    gamificationService.onCommentAdded(req.userId!).catch(() => {});
 
     const task = await prisma.task.findUnique({ where: { id: taskId }, select: { title: true, assigneeId: true } });
     if (task?.assigneeId && task.assigneeId !== req.userId) {
